@@ -9,7 +9,18 @@ app = Flask(__name__, static_folder='./popup')
 CORS(app)
 
 # Configure database
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///fingerprinting.db'
+import os
+
+# Use PostgreSQL if DATABASE_URL is available, otherwise fallback to SQLite
+database_url = os.environ.get('DATABASE_URL')
+if database_url:
+    # Ensure database URL has the correct format for SQLAlchemy
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///fingerprinting.db'
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
