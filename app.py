@@ -86,6 +86,25 @@ def test_error():
     else:
         # Return custom error message
         return jsonify({'error': f'Custom error: {error_type}'}), 400
+        
+@app.route('/api/test/add-detection', methods=['GET'])
+def add_test_detection():
+    """Add a test detection entry"""
+    domain = request.args.get('domain', 'test.example.com')
+    method = request.args.get('method', 'testMethod')
+    
+    detection = FingerprintingDetection(
+        url=f"https://{domain}/test",
+        domain=domain,
+        method=method,
+        script_url="https://test-script.js",
+        detection_method="manual-test"
+    )
+    
+    db.session.add(detection)
+    db.session.commit()
+    
+    return jsonify({'status': 'success', 'message': f'Added test detection for {domain}'})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)  # Changed port to avoid conflicts

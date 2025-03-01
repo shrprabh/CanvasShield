@@ -148,6 +148,10 @@
             The detector should identify tests 1, 2, and 3 as fingerprinting attempts, while test 4 should not trigger the detector.
         </div>
         
+        <div class="mb-4 text-center">
+            <button class="btn btn-info" onclick="checkDetectionCount()">Check Current Detection Count</button>
+        </div>
+        
         <div class="test-card card">
             <div class="card-header">
                 <h5>Test 1: Basic Canvas Fingerprinting</h5>
@@ -231,6 +235,9 @@
             const dataUrl = canvas.toDataURL();
             
             showResult('result1', 'Test completed');
+            
+            // Check detection count after 1 second to give detector time to process
+            setTimeout(checkDetectionCount, 1000);
         }
         
         // Test 2: Advanced Canvas Fingerprinting
@@ -429,6 +436,33 @@
                 .catch(e => {
                     showResult('result5', '❌ Backend error: ' + e.message, false);
                 });
+            });
+    }
+    
+    // Function to check and display detection count
+    function checkDetectionCount() {
+        fetch('/api/stats')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch stats');
+                }
+                return response.json();
+            })
+            .then(data => {
+                const countMessage = `Current detection count: ${data.total_detections}`;
+                const alertEl = document.createElement('div');
+                alertEl.className = 'alert alert-info position-fixed bottom-0 start-0 m-3';
+                alertEl.setAttribute('style', 'z-index: 1050;');
+                alertEl.textContent = countMessage;
+                document.body.appendChild(alertEl);
+                
+                // Auto-dismiss after 5 seconds
+                setTimeout(() => {
+                    alertEl.remove();
+                }, 5000);
+            })
+            .catch(error => {
+                console.error('Error checking detection count:', error);
             });
     }
     
