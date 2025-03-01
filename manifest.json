@@ -3,10 +3,7 @@
   "name": "Canvas Fingerprint Detector",
   "version": "1.0.0",
   "description": "Detects and reports canvas fingerprinting attempts with enhanced detection methods",
-  "permissions": [
-    "storage",
-    "activeTab"
-  ],
+  "permissions": ["storage", "activeTab"],
   "action": {
     "default_popup": "popup/popup.html",
     "default_icon": {
@@ -35,8 +32,11 @@
       "strict_min_version": "109.0"
     }
   },
-  "host_permissions": [
-  "http://localhost:5001/*"
-]
-  
+  "host_permissions": ["http://127.0.0.1:5001/*"],
+  "web_accessible_resources": [
+    {
+      "resources": ["scripts/inject.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

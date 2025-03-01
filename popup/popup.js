@@ -1,5 +1,5 @@
 // Configuration
-const API_URL = "http://0.0.0.0:5001"; // Match your Flask server port
+const API_URL = "http://127.0.0.1:5001"; // Match your Flask server port
 
 document.addEventListener("DOMContentLoaded", () => {
   // Get DOM elements
@@ -9,50 +9,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const toggleDetection = document.getElementById("toggleDetection");
   const exportBtn = document.getElementById("exportBtn");
   const clearBtn = document.getElementById("clearBtn");
-
-  // Initialize the popup by loading data
-  // In popup.js, replace the loadStats function to use total counts
-  function loadStats() {
-    fetch(`${API_URL}/api/stats`)
-      .then((response) => response.json())
-      .then((data) => {
-        // Update with the total_detections value
-        attemptCount.textContent = data.total_detections || 0;
-        // Rest of your code...
-      });
-  }
-  function checkCurrentSite() {
-    // Check if we're in a browser extension context
-    if (typeof chrome !== "undefined" && chrome.tabs) {
-      // Extension context - get current tab info
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0] && tabs[0].url) {
-          const currentUrl = new URL(tabs[0].url).hostname;
-
-          // Check if current site has fingerprinting attempts
-          fetch(`${API_URL}/api/detections?domain=${currentUrl}`)
-            .then((response) => response.json())
-            .then((data) => {
-              if (data && data.length > 0) {
-                siteStatus.textContent = "Fingerprinting Detected";
-                siteStatus.className = "status-danger";
-              } else {
-                siteStatus.textContent = "Safe";
-                siteStatus.className = "status-safe";
-              }
-            })
-            .catch((err) => {
-              console.error("Error checking site status:", err);
-            });
-        }
-      });
-    } else {
-      // Not in extension context - use a fallback or display message
-      console.log("Not running in extension context - skipping tab query");
-      siteStatus.textContent = "Testing Mode";
-      siteStatus.className = "status-neutral";
-    }
-  }
 
   // Event listeners
   toggleDetection.addEventListener("change", toggleDetectionStatus);
@@ -66,8 +22,8 @@ document.addEventListener("DOMContentLoaded", () => {
       .then((response) => response.json())
       .then((data) => {
         // Update attempt count
-        attemptCount.textContent = data.totalDetections || 0;
-
+        // Change this line
+        attemptCount.textContent = data.total_detections || 0;
         // Load recent detections
         loadDetections();
       })

@@ -1,10 +1,10 @@
 body {
-  width: 360px;
+  width: 550px;
+  min-height: 500px; /* Add this line to set minimum height */
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   margin: 0;
   padding: 0;
 }
-
 .container {
   padding: 16px;
 }
