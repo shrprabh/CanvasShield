@@ -34,5 +34,9 @@
       "id": "canvas-fingerprint-detector@example.com",
       "strict_min_version": "109.0"
     }
-  }
+  },
+  "host_permissions": [
+  "http://localhost:5001/*"
+]
+  
 }

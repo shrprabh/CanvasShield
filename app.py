@@ -5,7 +5,7 @@ from models import db, FingerprintingDetection
 import os
 from urllib.parse import urlparse
 
-app = Flask(__name__, static_folder='./popup')
+app = Flask(__name__, static_folder='.')
 CORS(app)
 
 # Configure database
@@ -118,4 +118,4 @@ def add_test_detection():
     return jsonify({'status': 'success', 'message': f'Added test detection for {domain}'})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080)  # Changed port to avoid conflicts
+    app.run(host='0.0.0.0', port=5000)  # Standard port for local development

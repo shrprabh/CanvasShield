@@ -1,118 +1,222 @@
+// Configuration
+const API_URL = "http://0.0.0.0:5001"; // Match your Flask server port
 
-document.addEventListener('DOMContentLoaded', function() {
-    const toggleDetection = document.getElementById('toggleDetection');
-    const attemptCount = document.getElementById('attemptCount');
-    const siteStatus = document.getElementById('siteStatus');
-    const detectionsList = document.getElementById('detectionsList');
-    const exportBtn = document.getElementById('exportBtn');
-    const clearBtn = document.getElementById('clearBtn');
-    
-    // API endpoint
-    const API_URL = 'http://0.0.0.0:5001';
-    
-    // Check detection toggle status
-    chrome.storage.local.get('detectionEnabled', function(data) {
-        toggleDetection.checked = data.detectionEnabled !== false;
-    });
-    
-    // Toggle detection on change
-    toggleDetection.addEventListener('change', function() {
-        chrome.storage.local.set({ detectionEnabled: toggleDetection.checked });
-    });
-    
-    // Fetch and update detections on popup open
-    fetchAndUpdateDetections();
-    
-    // Get current site status
-    getCurrentSiteStatus();
-    
-    // Export results
-    exportBtn.addEventListener('click', function() {
-        fetch(`${API_URL}/api/detections`)
-            .then(response => response.json())
-            .then(detections => {
-                const exportData = {
-                    generated: new Date().toISOString(),
-                    detections: detections
-                };
-                
-                const blob = new Blob(
-                    [JSON.stringify(exportData, null, 2)], 
-                    { type: 'application/json' }
-                );
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'canvas-fingerprinting-report.json';
-                a.click();
-                URL.revokeObjectURL(url);
-            });
-    });
+document.addEventListener("DOMContentLoaded", () => {
+  // Get DOM elements
+  const attemptCount = document.getElementById("attemptCount");
+  const siteStatus = document.getElementById("siteStatus");
+  const detectionsList = document.getElementById("detectionsList");
+  const toggleDetection = document.getElementById("toggleDetection");
+  const exportBtn = document.getElementById("exportBtn");
+  const clearBtn = document.getElementById("clearBtn");
 
-    // Clear history
-    clearBtn.addEventListener('click', function() {
-        if (confirm('Are you sure you want to clear all detection history?')) {
-            fetch(`${API_URL}/api/detections`, { method: 'DELETE' })
-                .then(() => fetchAndUpdateDetections());
-        }
-    });
+  // Initialize the popup by loading data
+  // In popup.js, replace the loadStats function to use total counts
+  function loadStats() {
+    fetch(`${API_URL}/api/stats`)
+      .then((response) => response.json())
+      .then((data) => {
+        // Update with the total_detections value
+        attemptCount.textContent = data.total_detections || 0;
+        // Rest of your code...
+      });
+  }
+  function checkCurrentSite() {
+    // Check if we're in a browser extension context
+    if (typeof chrome !== "undefined" && chrome.tabs) {
+      // Extension context - get current tab info
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0] && tabs[0].url) {
+          const currentUrl = new URL(tabs[0].url).hostname;
 
-    function updateDetectionsList(detections) {
-        detectionsList.innerHTML = '';
-        detections.slice(0, 10).forEach(detection => {
-            const item = document.createElement('div');
-            item.className = 'detection-item';
-            const time = new Date(detection.timestamp).toLocaleString();
-            
-            item.innerHTML = `
-                <div class="detection-header">
-                    <span class="detection-domain">${detection.domain}</span>
-                    <span class="detection-time">${time}</span>
-                </div>
-                <div class="detection-method">Method: ${detection.method}</div>
-                <div class="detection-url small text-truncate">${detection.url}</div>
-            `;
-            detectionsList.appendChild(item);
-        });
-        
-        if (detections.length === 0) {
-            detectionsList.innerHTML = '<div class="no-detections">No fingerprinting attempts detected yet.</div>';
-        }
-    }
-    
-    function fetchAndUpdateDetections() {
-        fetch(`${API_URL}/api/detections`)
-            .then(response => response.json())
-            .then(detections => {
-                attemptCount.textContent = detections.length;
-                updateDetectionsList(detections);
+          // Check if current site has fingerprinting attempts
+          fetch(`${API_URL}/api/detections?domain=${currentUrl}`)
+            .then((response) => response.json())
+            .then((data) => {
+              if (data && data.length > 0) {
+                siteStatus.textContent = "Fingerprinting Detected";
+                siteStatus.className = "status-danger";
+              } else {
+                siteStatus.textContent = "Safe";
+                siteStatus.className = "status-safe";
+              }
             })
-            .catch(error => {
-                console.error('Error fetching detections:', error);
-                detectionsList.innerHTML = '<div class="api-error">Could not connect to API service</div>';
+            .catch((err) => {
+              console.error("Error checking site status:", err);
             });
+        }
+      });
+    } else {
+      // Not in extension context - use a fallback or display message
+      console.log("Not running in extension context - skipping tab query");
+      siteStatus.textContent = "Testing Mode";
+      siteStatus.className = "status-neutral";
     }
-    
-    function getCurrentSiteStatus() {
-        chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-            if (tabs[0]) {
-                const currentUrl = tabs[0].url;
-                const domain = new URL(currentUrl).hostname;
-                
-                fetch(`${API_URL}/api/detections`)
-                    .then(response => response.json())
-                    .then(detections => {
-                        const siteDetections = detections.filter(d => d.domain === domain);
-                        
-                        if (siteDetections.length > 0) {
-                            siteStatus.textContent = 'Fingerprinting Detected';
-                            siteStatus.className = 'status-danger';
-                        } else {
-                            siteStatus.textContent = 'Safe';
-                            siteStatus.className = 'status-safe';
-                        }
-                    });
+  }
+
+  // Event listeners
+  toggleDetection.addEventListener("change", toggleDetectionStatus);
+  exportBtn.addEventListener("click", exportDetections);
+  clearBtn.addEventListener("click", clearDetections);
+
+  // Functions
+  function loadStats() {
+    // Get stats from the API
+    fetch(`${API_URL}/api/stats`)
+      .then((response) => response.json())
+      .then((data) => {
+        // Update attempt count
+        attemptCount.textContent = data.totalDetections || 0;
+
+        // Load recent detections
+        loadDetections();
+      })
+      .catch((err) => {
+        console.error("Error loading stats:", err);
+        attemptCount.textContent = "?";
+      });
+  }
+
+  function loadDetections() {
+    // Get recent detections from the API
+    fetch(`${API_URL}/api/detections`)
+      .then((response) => response.json())
+      .then((data) => {
+        if (!data || data.length === 0) {
+          detectionsList.innerHTML =
+            '<div class="no-detections">No fingerprinting attempts detected yet</div>';
+          return;
+        }
+
+        // Clear the list
+        detectionsList.innerHTML = "";
+
+        // Add recent detections (limit to 5)
+        const recentDetections = data.slice(0, 5);
+        recentDetections.forEach((detection) => {
+          const item = document.createElement("div");
+          item.className = "detection-item";
+
+          // Create domain with icon
+          const domain = new URL(detection.url).hostname;
+
+          // Format timestamp
+          const date = new Date(detection.timestamp);
+          const timeString = date.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+
+          item.innerHTML = `
+            <div class="detection-site">
+              <i class="fas fa-globe me-1"></i> ${domain}
+            </div>
+            <div class="detection-info">
+              <div class="detection-method">${detection.method}</div>
+              <div class="detection-time">${timeString}</div>
+            </div>
+          `;
+
+          detectionsList.appendChild(item);
+        });
+      })
+      .catch((err) => {
+        console.error("Error loading detections:", err);
+        detectionsList.innerHTML =
+          '<div class="no-detections">Error loading detections</div>';
+      });
+  }
+
+  function checkCurrentSite() {
+    // Get current tab info
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0] && tabs[0].url) {
+        const currentUrl = new URL(tabs[0].url).hostname;
+
+        // Check if current site has fingerprinting attempts
+        fetch(`${API_URL}/api/detections?domain=${currentUrl}`)
+          .then((response) => response.json())
+          .then((data) => {
+            if (data && data.length > 0) {
+              siteStatus.textContent = "Fingerprinting Detected";
+              siteStatus.className = "status-danger";
+            } else {
+              siteStatus.textContent = "Safe";
+              siteStatus.className = "status-safe";
             }
+          })
+          .catch((err) => {
+            console.error("Error checking site status:", err);
+          });
+      }
+    });
+  }
+
+  function toggleDetectionStatus() {
+    const isActive = toggleDetection.checked;
+
+    // Check if we're in extension context
+    if (typeof chrome !== "undefined" && chrome.runtime) {
+      // Send message to background script to enable/disable detection
+      chrome.runtime.sendMessage({
+        action: isActive ? "enableDetection" : "disableDetection",
+      });
+    } else {
+      console.log("Toggle state changed to:", isActive);
+      // Optional: Add testing mode behavior here
+    }
+  }
+
+  function exportDetections() {
+    fetch(`${API_URL}/api/detections`)
+      .then((response) => response.json())
+      .then((data) => {
+        // Convert to CSV
+        const csv = convertToCSV(data);
+
+        // Create download link
+        const blob = new Blob([csv], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "canvas_fingerprinting_detections.csv";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      })
+      .catch((err) => {
+        console.error("Error exporting detections:", err);
+        alert("Error exporting detections");
+      });
+  }
+
+  function clearDetections() {
+    if (confirm("Are you sure you want to clear all detection history?")) {
+      fetch(`${API_URL}/api/detections`, { method: "DELETE" })
+        .then((response) => response.json())
+        .then((data) => {
+          loadStats();
+          alert("Detection history cleared");
+        })
+        .catch((err) => {
+          console.error("Error clearing detections:", err);
+          alert("Error clearing detections");
         });
     }
+  }
+
+  function convertToCSV(data) {
+    if (!data || data.length === 0) return "";
+
+    const header = Object.keys(data[0]).join(",");
+    const rows = data.map((obj) =>
+      Object.values(obj)
+        .map((val) =>
+          typeof val === "string" ? `"${val.replace(/"/g, '""')}"` : val
+        )
+        .join(",")
+    );
+
+    return [header, ...rows].join("\n");
+  }
 });

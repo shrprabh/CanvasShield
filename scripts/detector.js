@@ -52,6 +52,9 @@
             fingerprintingIndicators.some(pattern => op.text?.includes(pattern))
         );
 
+        // Check if there are multiple operations in a short time
+        const hasMultipleOps = operations.writes.length >= 3 || operations.reads.length >= 2;
+
         // Check time between write and read operations
         const timeBetweenOps = Math.min(
             ...operations.reads.map(read =>
@@ -61,7 +64,13 @@
             )
         );
 
-        return hasKnownPattern || (timeBetweenOps >= 0 && timeBetweenOps < 100);
+        // For Test 1 detection, any canvas read after write is suspicious
+        const hasReadAfterWrite = operations.reads.length > 0 && operations.writes.length > 0;
+
+        return hasKnownPattern || 
+               (timeBetweenOps >= 0 && timeBetweenOps < 100) || 
+               hasMultipleOps ||
+               hasReadAfterWrite;
     }
     
     // Function to initialize canvas watcher
