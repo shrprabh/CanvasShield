@@ -210,7 +210,7 @@
 
     <script>
       document.addEventListener("DOMContentLoaded", function () {
-        const API_URL = "http://0.0.0.0:5001";
+        const API_URL = "http://127.0.0.1:5001";
         const canvas = document.getElementById("fingerprint-canvas");
         const ctx = canvas.getContext("2d");
         const testFingerprintBtn =
@@ -230,7 +230,11 @@
 
               const recentDetectionsEl =
                 document.getElementById("recentDetections");
-              if (data.recent_detections.length === 0) {
+
+              // Check if recent_detections exists, if not, use an empty array
+              const recentDetections = data.recent_detections || [];
+
+              if (recentDetections.length === 0) {
                 recentDetectionsEl.innerHTML =
                   '<div class="text-center text-muted">No detections yet</div>';
                 return;
@@ -320,7 +324,7 @@
     </script>
 
     <!-- Canvas fingerprinting detector script -->
-    <script src="scripts/detector.js"></script>
+    <script src="ml-detector.js"></script>
     <script>
       // Initialize detector with callback function
       if (window.__canvasWatcher) {
@@ -328,7 +332,8 @@
           console.log("Canvas fingerprinting detected!", method, scriptUrl);
 
           // Send to API
-          fetch("http://0.0.0.0:5001/api/detections", {
+          // Change in index.html around line 330
+          fetch("http://127.0.0.1:5001/api/detections", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

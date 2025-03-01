@@ -1,121 +1,91 @@
-
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
-from models import db, FingerprintingDetection
+import json
+from datetime import datetime
 import os
-from urllib.parse import urlparse
 
-app = Flask(__name__, static_folder='.')
+app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app)
 
-# Configure database
-import os
+# In-memory storage instead of SQL database
+detections = []
 
-# Use PostgreSQL if DATABASE_URL is available, otherwise fallback to SQLite
-database_url = os.environ.get('DATABASE_URL')
-if database_url:
-    # Ensure database URL has the correct format for SQLAlchemy
-    if database_url.startswith('postgres://'):
-        database_url = database_url.replace('postgres://', 'postgresql://', 1)
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-else:
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///fingerprinting.db'
-
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db.init_app(app)
-
-with app.app_context():
-    db.create_all()
+# Helper to get next ID
+def get_next_id():
+    return len(detections) + 1
 
 @app.route('/')
 def index():
-    return send_from_directory('popup', 'popup.html')
+    return send_from_directory('.', 'index.html')
 
-@app.route('/<path:path>')
-def static_files(path):
-    return send_from_directory('.', path)
-
-@app.route('/api/detections', methods=['GET'])
-def get_detections():
-    detections = FingerprintingDetection.query.order_by(FingerprintingDetection.timestamp.desc()).all()
-    return jsonify([detection.to_dict() for detection in detections])
-
-@app.route('/api/detections', methods=['POST'])
-def add_detection():
-    data = request.json
-    url = data.get('url')
-    domain = urlparse(url).netloc
+@app.route('/api/detections', methods=['GET', 'POST', 'DELETE'])
+def handle_detections():
+    global detections
     
-    detection = FingerprintingDetection(
-        url=url,
-        domain=domain,
-        method=data.get('method'),
-        script_url=data.get('details', {}).get('scriptUrl'),
-        detection_method=data.get('details', {}).get('detectionMethod')
-    )
+    if request.method == 'GET':
+        # Filter by domain if provided
+        domain = request.args.get('domain')
+        if domain:
+            filtered = [d for d in detections if domain in d.get('domain', '')]
+            return jsonify(filtered)
+        return jsonify(detections)
     
-    db.session.add(detection)
-    db.session.commit()
+    elif request.method == 'POST':
+        data = request.json
+        detection = {
+            'id': get_next_id(),
+            'url': data.get('url', ''),
+            'domain': data.get('url', '').split('/')[2] if '//' in data.get('url', '') else '',
+            'timestamp': data.get('timestamp', datetime.now().timestamp() * 1000),
+            'method': data.get('method', 'unknown'),
+            'details': data.get('details', {})
+        }
+        detections.append(detection)
+        return jsonify({'success': True, 'id': detection['id']})
     
-    return jsonify(detection.to_dict())
-
-@app.route('/api/detections', methods=['DELETE'])
-def clear_detections():
-    FingerprintingDetection.query.delete()
-    db.session.commit()
-    return jsonify({'status': 'success'})
+    elif request.method == 'DELETE':
+        detections = []
+        return jsonify({'success': True, 'message': 'All detections cleared'})
 
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
-    total_detections = FingerprintingDetection.query.count()
-    unique_domains = db.session.query(FingerprintingDetection.domain).distinct().count()
+    domains = set()
+    for detection in detections:
+        if 'domain' in detection and detection['domain']:
+            domains.add(detection['domain'])
     
-    recent_detections = FingerprintingDetection.query.order_by(
-        FingerprintingDetection.timestamp.desc()
-    ).limit(5).all()
+    # Sort detections by timestamp (newest first) and get most recent 5
+    sorted_detections = sorted(detections, key=lambda x: x.get('timestamp', 0), reverse=True)
+    recent = sorted_detections[:5] if sorted_detections else []
     
     return jsonify({
-        'total_detections': total_detections,
-        'unique_domains': unique_domains,
-        'recent_detections': [detection.to_dict() for detection in recent_detections]
+        'total_detections': len(detections),
+        'unique_domains': len(domains),
+        'domains': list(domains),
+        'recent_detections': recent  # Add this line
     })
 
-@app.route('/api/test-error', methods=['GET'])
-def test_error():
-    """Test endpoint that intentionally raises an error"""
-    error_type = request.args.get('type', 'server')
-    
-    if error_type == 'server':
-        # Simulate a server error
-        raise Exception("Intentional server error for testing")
-    elif error_type == 'auth':
-        # Simulate authentication error
-        return jsonify({'error': 'Unauthorized access'}), 401
-    elif error_type == 'notfound':
-        # Simulate not found error
-        return jsonify({'error': 'Resource not found'}), 404
-    else:
-        # Return custom error message
-        return jsonify({'error': f'Custom error: {error_type}'}), 400
-        
 @app.route('/api/test/add-detection', methods=['GET'])
 def add_test_detection():
     """Add a test detection entry"""
     domain = request.args.get('domain', 'test.example.com')
     method = request.args.get('method', 'testMethod')
     
-    detection = FingerprintingDetection(
-        url=f"https://{domain}/test",
-        domain=domain,
-        method=method,
-        script_url="https://test-script.js",
-        detection_method="manual-test"
-    )
+    detection = {
+        'id': get_next_id(),
+        'url': f"https://{domain}/test",
+        'domain': domain,
+        'method': method,
+        'timestamp': datetime.now().timestamp() * 1000,
+        'details': {
+            'scriptUrl': "https://test-script.js",
+            'detectionMethod': "manual-test"
+        }
+    }
     
-    db.session.add(detection)
-    db.session.commit()
+    detections.append(detection)
     
     return jsonify({'status': 'success', 'message': f'Added test detection for {domain}'})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)  # Standard port for local development
+    app.run(host='0.0.0.0', port=5001)  # Use port 5001 to avoid AirPlay conflict
