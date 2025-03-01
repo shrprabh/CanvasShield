@@ -1,0 +1,59 @@
+body {
+    width: 350px;
+    padding: 15px;
+}
+
+.container {
+    padding: 0;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.stats {
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    margin: 5px 0;
+}
+
+.detection-list {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+}
+
+.detection-item {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+    font-size: 0.9em;
+}
+
+.detection-item:hover {
+    background: #f8f9fa;
+}
+
+.actions {
+    display: flex;
+    gap: 10px;
+}
+
+#siteStatus.unsafe {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+#siteStatus.safe {
+    color: #198754;
+    font-weight: bold;
+}
