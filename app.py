@@ -1,53 +1,52 @@
-import os
-from flask import Flask, request, jsonify
+
+from flask import Flask, jsonify, request, send_from_directory
+from flask_cors import CORS
 from models import db, FingerprintingDetection
+import os
 from urllib.parse import urlparse
-from datetime import datetime
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='./popup')
+CORS(app)
 
-# Database configuration
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_recycle": 300,
-    "pool_pre_ping": True,
-}
-
-# Initialize the database
+# Configure database
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///fingerprinting.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
-# Create tables
 with app.app_context():
     db.create_all()
 
-@app.route('/api/detections', methods=['POST'])
-def store_detection():
-    data = request.json
-    domain = urlparse(data['url']).netloc
+@app.route('/')
+def index():
+    return send_from_directory('popup', 'popup.html')
 
-    detection = FingerprintingDetection(
-        url=data['url'],
-        domain=domain,
-        method=data['method'],
-        script_url=data.get('scriptUrl'),
-        detection_method=data.get('detectionMethod')
-    )
-
-    db.session.add(detection)
-    db.session.commit()
-
-    return jsonify({'status': 'success', 'id': detection.id})
+@app.route('/<path:path>')
+def static_files(path):
+    return send_from_directory('.', path)
 
 @app.route('/api/detections', methods=['GET'])
 def get_detections():
-    detections = FingerprintingDetection.query.order_by(
-        FingerprintingDetection.timestamp.desc()
-    ).limit(1000).all()
+    detections = FingerprintingDetection.query.order_by(FingerprintingDetection.timestamp.desc()).all()
+    return jsonify([detection.to_dict() for detection in detections])
 
-    return jsonify({
-        'detections': [detection.to_dict() for detection in detections]
-    })
+@app.route('/api/detections', methods=['POST'])
+def add_detection():
+    data = request.json
+    url = data.get('url')
+    domain = urlparse(url).netloc
+    
+    detection = FingerprintingDetection(
+        url=url,
+        domain=domain,
+        method=data.get('method'),
+        script_url=data.get('details', {}).get('scriptUrl'),
+        detection_method=data.get('details', {}).get('detectionMethod')
+    )
+    
+    db.session.add(detection)
+    db.session.commit()
+    
+    return jsonify(detection.to_dict())
 
 @app.route('/api/detections', methods=['DELETE'])
 def clear_detections():
@@ -55,5 +54,20 @@ def clear_detections():
     db.session.commit()
     return jsonify({'status': 'success'})
 
+@app.route('/api/stats', methods=['GET'])
+def get_stats():
+    total_detections = FingerprintingDetection.query.count()
+    unique_domains = db.session.query(FingerprintingDetection.domain).distinct().count()
+    
+    recent_detections = FingerprintingDetection.query.order_by(
+        FingerprintingDetection.timestamp.desc()
+    ).limit(5).all()
+    
+    return jsonify({
+        'total_detections': total_detections,
+        'unique_domains': unique_domains,
+        'recent_detections': [detection.to_dict() for detection in recent_detections]
+    })
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5001)  # Changed port to 5001 since 5000 was in use

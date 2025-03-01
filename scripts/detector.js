@@ -1,65 +1,71 @@
-window.__canvasWatcher = {
-    init: function(callback) {
-        const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
-        const originalGetImageData = CanvasRenderingContext2D.prototype.getImageData;
-        const originalFillText = CanvasRenderingContext2D.prototype.fillText;
-        const originalStrokeText = CanvasRenderingContext2D.prototype.strokeText;
 
-        // Storage for tracking canvas operations
-        const canvasOperations = new Map();
-
-        // Known fingerprinting patterns
-        const fingerprintingIndicators = [
-            'Cwm fjordbank glyphs vext quiz',
-            'http://valve.github.io',
-            'Abcdefghi',
-            'no-real-font-',
-            '😃'
-        ];
-
-        function extractCallerInfo() {
-            const stack = new Error().stack;
-            const lines = stack.split('\n');
-            for (let i = 2; i < lines.length; i++) {
-                const line = lines[i].trim();
-                if (line.includes('http') || line.includes('https')) {
-                    const match = line.match(/(https?:\/\/[^:]+):(\d+):(\d+)/);
-                    if (match) {
-                        return {
-                            url: match[1],
-                            line: match[2],
-                            column: match[3]
-                        };
-                    }
-                }
+(function() {
+    // Store original canvas methods
+    const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+    const originalToBlob = HTMLCanvasElement.prototype.toBlob;
+    const originalGetImageData = CanvasRenderingContext2D.prototype.getImageData;
+    const originalFillText = CanvasRenderingContext2D.prototype.fillText;
+    const originalStrokeText = CanvasRenderingContext2D.prototype.strokeText;
+    
+    // Track canvas operations
+    const canvasOperations = new Map();
+    
+    // Known fingerprinting indicators
+    const fingerprintingIndicators = [
+        'Cwm fjordbank', 
+        'vext quiz', 
+        'AaBbCcDd', 
+        'mmmmmmmmlli',
+        '!@#$%^&*()'
+    ];
+    
+    // Extract caller information from stack trace
+    function extractCallerInfo() {
+        const error = new Error();
+        const stack = error.stack || '';
+        const stackLines = stack.split('\n').slice(2);
+        
+        // Find the first non-extension URL in the stack trace
+        for (const line of stackLines) {
+            const match = line.match(/at\s+(.+)\s+\((.+)\)/);
+            if (match && match[2] && !match[2].includes('detector.js')) {
+                return {
+                    function: match[1],
+                    url: match[2]
+                };
             }
-            return { url: window.location.href, line: 0, column: 0 };
         }
+        
+        return { function: 'unknown', url: 'unknown' };
+    }
+    
+    // Detect fingerprinting based on canvas operations
+    function detectFingerprinting(canvas, operations) {
+        // Skip if no operations recorded
+        if (!operations.writes.length || !operations.reads.length) return false;
 
-        function detectFingerprinting(canvas, operations) {
-            // Skip if no operations recorded
-            if (!operations.writes.length || !operations.reads.length) return false;
+        // Check canvas size (>16x16 pixels)
+        if (canvas.width * canvas.height < 256) return false;
 
-            // Check canvas size (>16x16 pixels)
-            if (canvas.width * canvas.height < 256) return false;
+        // Check for known fingerprinting text patterns
+        const hasKnownPattern = operations.writes.some(op =>
+            fingerprintingIndicators.some(pattern => op.text?.includes(pattern))
+        );
 
-            // Check for known fingerprinting text patterns
-            const hasKnownPattern = operations.writes.some(op =>
-                fingerprintingIndicators.some(pattern => op.text?.includes(pattern))
-            );
+        // Check time between write and read operations
+        const timeBetweenOps = Math.min(
+            ...operations.reads.map(read =>
+                Math.min(...operations.writes.map(write =>
+                    read.timestamp - write.timestamp
+                ))
+            )
+        );
 
-            // Check time between write and read operations
-            const timeBetweenOps = Math.min(
-                ...operations.reads.map(read =>
-                    Math.min(...operations.writes.map(write =>
-                        read.timestamp - write.timestamp
-                    ))
-                )
-            );
-
-            return hasKnownPattern || (timeBetweenOps >= 0 && timeBetweenOps < 100);
-        }
-
+        return hasKnownPattern || (timeBetweenOps >= 0 && timeBetweenOps < 100);
+    }
+    
+    // Function to initialize canvas watcher
+    function init(callback) {
         // Wrap text operations
         CanvasRenderingContext2D.prototype.fillText = function(text, x, y, maxWidth) {
             const caller = extractCallerInfo();
@@ -118,6 +124,32 @@ window.__canvasWatcher = {
             return result;
         };
 
+        HTMLCanvasElement.prototype.toBlob = function(callback) {
+            const caller = extractCallerInfo();
+
+            if (!canvasOperations.has(this)) {
+                canvasOperations.set(this, { writes: [], reads: [] });
+            }
+
+            canvasOperations.get(this).reads.push({
+                type: 'toBlob',
+                caller: caller,
+                timestamp: Date.now()
+            });
+
+            const originalCallback = callback;
+            const wrappedCallback = function(blob) {
+                if (detectFingerprinting(this, canvasOperations.get(this))) {
+                    callback('toBlob', caller.url);
+                }
+                if (originalCallback) {
+                    originalCallback(blob);
+                }
+            }.bind(this);
+
+            return originalToBlob.apply(this, [wrappedCallback, ...Array.from(arguments).slice(1)]);
+        };
+
         CanvasRenderingContext2D.prototype.getImageData = function() {
             const caller = extractCallerInfo();
 
@@ -140,4 +172,10 @@ window.__canvasWatcher = {
             return result;
         };
     }
-};
+    
+    // Expose canvas watcher to window
+    window.__canvasWatcher = {
+        init,
+        detectFingerprinting
+    };
+})();

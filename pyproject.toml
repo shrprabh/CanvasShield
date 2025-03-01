@@ -11,4 +11,5 @@ dependencies = [
     "sqlalchemy>=2.0.38",
     "flask-wtf>=1.2.2",
     "oauthlib>=3.2.2",
+    "flask-cors>=5.0.1",
 ]
