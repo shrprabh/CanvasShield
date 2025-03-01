@@ -2,6 +2,7 @@ import os
 from flask import Flask, request, jsonify
 from models import db, FingerprintingDetection
 from urllib.parse import urlparse
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -24,7 +25,7 @@ with app.app_context():
 def store_detection():
     data = request.json
     domain = urlparse(data['url']).netloc
-    
+
     detection = FingerprintingDetection(
         url=data['url'],
         domain=domain,
@@ -32,10 +33,10 @@ def store_detection():
         script_url=data.get('scriptUrl'),
         detection_method=data.get('detectionMethod')
     )
-    
+
     db.session.add(detection)
     db.session.commit()
-    
+
     return jsonify({'status': 'success', 'id': detection.id})
 
 @app.route('/api/detections', methods=['GET'])
@@ -43,10 +44,16 @@ def get_detections():
     detections = FingerprintingDetection.query.order_by(
         FingerprintingDetection.timestamp.desc()
     ).limit(1000).all()
-    
+
     return jsonify({
         'detections': [detection.to_dict() for detection in detections]
     })
+
+@app.route('/api/detections', methods=['DELETE'])
+def clear_detections():
+    FingerprintingDetection.query.delete()
+    db.session.commit()
+    return jsonify({'status': 'success'})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
