@@ -4,7 +4,7 @@ chrome.runtime.sendMessage({ type: 'contentScriptLoaded' });
 // Listen for messages from detector
 window.addEventListener('message', function(event) {
     if (event.source !== window) return;
-    
+
     if (event.data.type === 'canvasFingerprinting') {
         chrome.runtime.sendMessage({
             type: 'fingerprint_detected',
@@ -12,7 +12,11 @@ window.addEventListener('message', function(event) {
                 url: window.location.href,
                 timestamp: Date.now(),
                 method: event.data.method,
-                stack: event.data.stack
+                stack: event.data.stack,
+                details: {
+                    scriptUrl: event.data.stack,
+                    detectionMethod: event.data.method
+                }
             }
         });
     }
@@ -27,13 +31,13 @@ script.remove();
 function injectDetector() {
     // Already defined in detector.js
     if (window.__canvasWatcher) return;
-    
+
     // Notification function
-    function notifyDetection(method, stack) {
+    function notifyDetection(method, scriptUrl) {
         window.postMessage({
             type: 'canvasFingerprinting',
             method: method,
-            stack: stack
+            stack: scriptUrl
         }, '*');
     }
 

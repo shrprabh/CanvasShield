@@ -1,0 +1,243 @@
+// Canvas Fingerprinting Detector Extension
+const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+const originalGetImageData = CanvasRenderingContext2D.prototype.getImageData;
+const originalFillText = CanvasRenderingContext2D.prototype.fillText;
+const originalStrokeText = CanvasRenderingContext2D.prototype.strokeText;
+
+// Storage for tracking canvas operations
+const canvasOperations = new Map();
+
+// Track canvas write operations (fillText, strokeText)
+CanvasRenderingContext2D.prototype.fillText = function(text, x, y, maxWidth) {
+    const stackTrace = new Error().stack;
+    const caller = extractCallerInfo(stackTrace);
+    
+    if (!canvasOperations.has(this.canvas)) {
+        canvasOperations.set(this.canvas, {
+            writes: [],
+            reads: [],
+            caller: caller
+        });
+    }
+    
+    canvasOperations.get(this.canvas).writes.push({
+        type: 'fillText',
+        text: text,
+        caller: caller,
+        timestamp: Date.now()
+    });
+    
+    return originalFillText.apply(this, arguments);
+};
+
+CanvasRenderingContext2D.prototype.strokeText = function(text, x, y, maxWidth) {
+    const stackTrace = new Error().stack;
+    const caller = extractCallerInfo(stackTrace);
+    
+    if (!canvasOperations.has(this.canvas)) {
+        canvasOperations.set(this.canvas, {
+            writes: [],
+            reads: [],
+            caller: caller
+        });
+    }
+    
+    canvasOperations.get(this.canvas).writes.push({
+        type: 'strokeText',
+        text: text,
+        caller: caller,
+        timestamp: Date.now()
+    });
+    
+    return originalStrokeText.apply(this, arguments);
+};
+
+// Track canvas read operations (toDataURL, getImageData)
+HTMLCanvasElement.prototype.toDataURL = function() {
+    const stackTrace = new Error().stack;
+    const caller = extractCallerInfo(stackTrace);
+    
+    if (!canvasOperations.has(this)) {
+        canvasOperations.set(this, {
+            writes: [],
+            reads: [],
+            caller: caller
+        });
+    }
+    
+    canvasOperations.get(this).reads.push({
+        type: 'toDataURL',
+        format: arguments[0] || 'image/png',
+        caller: caller,
+        timestamp: Date.now()
+    });
+    
+    const result = originalToDataURL.apply(this, arguments);
+    
+    // Check if this operation meets fingerprinting criteria
+    detectFingerprinting(this, caller, result);
+    
+    return result;
+};
+
+CanvasRenderingContext2D.prototype.getImageData = function() {
+    const stackTrace = new Error().stack;
+    const caller = extractCallerInfo(stackTrace);
+    
+    if (!canvasOperations.has(this.canvas)) {
+        canvasOperations.set(this.canvas, {
+            writes: [],
+            reads: [],
+            caller: caller
+        });
+    }
+    
+    canvasOperations.get(this.canvas).reads.push({
+        type: 'getImageData',
+        x: arguments[0],
+        y: arguments[1],
+        width: arguments[2],
+        height: arguments[3],
+        caller: caller,
+        timestamp: Date.now()
+    });
+    
+    const result = originalGetImageData.apply(this, arguments);
+    
+    // Check if this operation meets fingerprinting criteria
+    detectFingerprinting(this.canvas, caller, null, arguments[2], arguments[3]);
+    
+    return result;
+};
+
+// Helper function to extract caller information from stack trace
+function extractCallerInfo(stackTrace) {
+    const lines = stackTrace.split('\n');
+    // Skip the first two lines (Error and our wrapper function)
+    for (let i = 2; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line.includes('http') || line.includes('https')) {
+            // Extract URL and line number
+            const match = line.match(/(https?:\/\/[^:]+):(\d+):(\d+)/);
+            if (match) {
+                return {
+                    url: match[1],
+                    line: match[2],
+                    column: match[3]
+                };
+            }
+        }
+    }
+    return { url: 'unknown', line: 0, column: 0 };
+}
+
+// Function to detect fingerprinting based on the paper's criteria
+function detectFingerprinting(canvas, caller, imageData, width, height) {
+    const operations = canvasOperations.get(canvas);
+    
+    // Check if both write and read operations occurred
+    if (operations.writes.length === 0 || operations.reads.length === 0) {
+        return false;
+    }
+    
+    // Check if the same script is doing both read and write
+    const writeCallers = operations.writes.map(op => op.caller.url);
+    const readCallers = operations.reads.map(op => op.caller.url);
+    
+    const sameOrigin = writeCallers.some(url => readCallers.includes(url));
+    if (!sameOrigin) {
+        return false;
+    }
+    
+    // Check canvas size (>16x16 pixels as per the paper)
+    const canvasSize = width && height ? width * height : 
+                      (canvas.width * canvas.height);
+    if (canvasSize < 256) { // 16x16
+        return false;
+    }
+    
+    // Check if using lossy compression (like JPEG), which is less likely for fingerprinting
+    const usingLossyFormat = operations.reads.some(op => 
+        op.type === 'toDataURL' && op.format && op.format.includes('jpeg'));
+    if (usingLossyFormat) {
+        return false;
+    }
+    
+    // Additional checks for common fingerprinting patterns
+    const hasFingerprinting = operations.writes.some(op => {
+        if (op.type !== 'fillText' && op.type !== 'strokeText') return false;
+        
+        // Check for known fingerprinting texts
+        const text = op.text || '';
+        const fingerprintingIndicators = [
+            'Cwm fjordbank glyphs vext quiz', // AddThis pangram
+            'http://valve.github.io',        // Common fingerprinting library
+            'Abcdefghi',                     // Generic test text
+            'no-real-font-',                 // Font fallback test
+            '😃'                             // Unicode support test
+        ];
+        
+        return fingerprintingIndicators.some(indicator => 
+            text.includes(indicator));
+    });
+    
+    if (hasFingerprinting) {
+        reportFingerprinting(canvas, operations);
+        return true;
+    }
+    
+    // If all criteria pass but no specific fingerprinting pattern found,
+    // it could still be fingerprinting with custom text
+    const timeBetweenWriteAndRead = Math.min(
+        ...operations.reads.map(read => {
+            return Math.min(...operations.writes.map(write => 
+                read.timestamp - write.timestamp));
+        })
+    );
+    
+    // If read happens very soon after write, likely fingerprinting
+    if (timeBetweenWriteAndRead >= 0 && timeBetweenWriteAndRead < 100) {
+        reportFingerprinting(canvas, operations);
+        return true;
+    }
+    
+    return false;
+}
+
+// Function to report detected fingerprinting
+function reportFingerprinting(canvas, operations) {
+    const domain = window.location.hostname;
+    const writeCallers = [...new Set(operations.writes.map(op => op.caller.url))];
+    const readCallers = [...new Set(operations.reads.map(op => op.caller.url))];
+    
+    console.warn('Canvas Fingerprinting Detected!', {
+        domain: domain,
+        writeScripts: writeCallers,
+        readScripts: readCallers,
+        canvasSize: `${canvas.width}x${canvas.height}`,
+        text: operations.writes
+            .filter(op => op.text)
+            .map(op => op.text)
+            .join(', '),
+        timestamp: new Date().toISOString()
+    });
+    
+    // Send this data to the extension's background script for logging/blocking
+    if (typeof browser !== 'undefined' || typeof chrome !== 'undefined') {
+        const runtime = browser || chrome;
+        runtime.runtime.sendMessage({
+            type: 'FINGERPRINTING_DETECTED',
+            data: {
+                domain: domain,
+                writeScripts: writeCallers,
+                readScripts: readCallers,
+                canvasSize: `${canvas.width}x${canvas.height}`,
+                text: operations.writes
+                    .filter(op => op.text)
+                    .map(op => op.text)
+                    .join(', '),
+                timestamp: new Date().toISOString()
+            }
+        });
+    }
+}
