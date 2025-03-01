@@ -4,7 +4,7 @@ modules = ["python-3.11", "postgresql-16"]
 channel = "stable-24_05"
 
 [workflows]
-runButton = "Project"
+runButton = "Flask API"
 
 [[workflows.workflow]]
 name = "Project"
@@ -36,3 +36,7 @@ run = ["sh", "-c", "python app.py"]
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 5001
+externalPort = 3000
