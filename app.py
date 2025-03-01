@@ -69,5 +69,23 @@ def get_stats():
         'recent_detections': [detection.to_dict() for detection in recent_detections]
     })
 
+@app.route('/api/test-error', methods=['GET'])
+def test_error():
+    """Test endpoint that intentionally raises an error"""
+    error_type = request.args.get('type', 'server')
+    
+    if error_type == 'server':
+        # Simulate a server error
+        raise Exception("Intentional server error for testing")
+    elif error_type == 'auth':
+        # Simulate authentication error
+        return jsonify({'error': 'Unauthorized access'}), 401
+    elif error_type == 'notfound':
+        # Simulate not found error
+        return jsonify({'error': 'Resource not found'}), 404
+    else:
+        # Return custom error message
+        return jsonify({'error': f'Custom error: {error_type}'}), 400
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)  # Changed port to avoid conflicts

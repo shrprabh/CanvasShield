@@ -68,20 +68,26 @@
     function init(callback) {
         // Wrap text operations
         CanvasRenderingContext2D.prototype.fillText = function(text, x, y, maxWidth) {
-            const caller = extractCallerInfo();
+            try {
+                const caller = extractCallerInfo();
 
-            if (!canvasOperations.has(this.canvas)) {
-                canvasOperations.set(this.canvas, { writes: [], reads: [] });
+                if (!canvasOperations.has(this.canvas)) {
+                    canvasOperations.set(this.canvas, { writes: [], reads: [] });
+                }
+
+                canvasOperations.get(this.canvas).writes.push({
+                    type: 'fillText',
+                    text: text,
+                    caller: caller,
+                    timestamp: Date.now()
+                });
+
+                return originalFillText.apply(this, arguments);
+            } catch (error) {
+                console.error('Error in fillText interceptor:', error);
+                // Still call original even if our instrumentation fails
+                return originalFillText.apply(this, arguments);
             }
-
-            canvasOperations.get(this.canvas).writes.push({
-                type: 'fillText',
-                text: text,
-                caller: caller,
-                timestamp: Date.now()
-            });
-
-            return originalFillText.apply(this, arguments);
         };
 
         CanvasRenderingContext2D.prototype.strokeText = function(text, x, y, maxWidth) {
@@ -103,25 +109,42 @@
 
         // Wrap canvas read operations
         HTMLCanvasElement.prototype.toDataURL = function() {
-            const caller = extractCallerInfo();
+            try {
+                const caller = extractCallerInfo();
 
-            if (!canvasOperations.has(this)) {
-                canvasOperations.set(this, { writes: [], reads: [] });
+                if (!canvasOperations.has(this)) {
+                    canvasOperations.set(this, { writes: [], reads: [] });
+                }
+
+                canvasOperations.get(this).reads.push({
+                    type: 'toDataURL',
+                    caller: caller,
+                    timestamp: Date.now()
+                });
+
+                let result;
+                try {
+                    result = originalToDataURL.apply(this, arguments);
+                } catch (canvasError) {
+                    console.error('Error calling original toDataURL:', canvasError);
+                    throw canvasError; // Re-throw the original error
+                }
+
+                try {
+                    if (detectFingerprinting(this, canvasOperations.get(this))) {
+                        callback('toDataURL', caller.url);
+                    }
+                } catch (detectionError) {
+                    console.error('Error in fingerprinting detection:', detectionError);
+                    // Don't throw here to ensure the canvas operation succeeds
+                }
+
+                return result;
+            } catch (error) {
+                console.error('Unexpected error in toDataURL interceptor:', error);
+                // In case of catastrophic failure, try to call the original
+                return originalToDataURL.apply(this, arguments);
             }
-
-            canvasOperations.get(this).reads.push({
-                type: 'toDataURL',
-                caller: caller,
-                timestamp: Date.now()
-            });
-
-            const result = originalToDataURL.apply(this, arguments);
-
-            if (detectFingerprinting(this, canvasOperations.get(this))) {
-                callback('toDataURL', caller.url);
-            }
-
-            return result;
         };
 
         HTMLCanvasElement.prototype.toBlob = function(callback) {

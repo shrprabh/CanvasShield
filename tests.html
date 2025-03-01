@@ -199,6 +199,21 @@
                 <small class="text-muted">Draw on the canvas by clicking and dragging</small>
             </div>
         </div>
+        
+        <div class="test-card card">
+            <div class="card-header">
+                <h5>Test 5: Error Case Testing</h5>
+            </div>
+            <div class="card-body">
+                <p>Testing detector behavior in error conditions.</p>
+                <canvas id="test5" width="200" height="100"></canvas>
+                <div class="mb-2">
+                    <button class="btn btn-primary" onclick="runErrorTest()">Test Error Handling</button>
+                    <button class="btn btn-secondary" onclick="testAPIFailure()">Test API Failure</button>
+                </div>
+                <div id="result5" class="result" style="display: none;"></div>
+            </div>
+        </div>
     </div>
     
     <script>
@@ -337,6 +352,86 @@
     
     <!-- Include the detector script -->
     <script src="scripts/detector.js"></script>
+    // Error testing functions
+    function runErrorTest() {
+        try {
+            const canvas = document.getElementById('test5');
+            const ctx = canvas.getContext('2d');
+            
+            // Cause an error by modifying the prototype temporarily
+            const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+            HTMLCanvasElement.prototype.toDataURL = function() {
+                throw new Error("Intentional error for testing");
+            };
+            
+            // Try to use canvas methods
+            ctx.fillStyle = 'blue';
+            ctx.fillRect(0, 0, 100, 50);
+            ctx.font = "14px Arial";
+            ctx.fillText("Error test", 10, 30);
+            
+            // Try to trigger the error
+            try {
+                canvas.toDataURL();
+            } catch (e) {
+                showResult('result5', '🔄 Error thrown: ' + e.message, false);
+                HTMLCanvasElement.prototype.toDataURL = originalToDataURL;
+                return;
+            }
+            
+            // Restore original method
+            HTMLCanvasElement.prototype.toDataURL = originalToDataURL;
+            showResult('result5', '✅ Error test completed', false);
+        } catch (e) {
+            showResult('result5', '❌ Test failed: ' + e.message, false);
+        }
+    }
+    
+    function testAPIFailure() {
+        // Test API failure by making a request to a non-existent endpoint
+        fetch('/api/nonexistent')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('API request failed with status: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                showResult('result5', '✅ API Response: ' + JSON.stringify(data), false);
+            })
+            .catch(error => {
+                showResult('result5', '🔄 Expected API error: ' + error.message, false);
+                
+                // Send error to backend
+                const errorData = {
+                    url: window.location.href,
+                    method: 'API Error Test',
+                    details: {
+                        errorMessage: error.message,
+                        detectionMethod: 'Manual Error Test'
+                    }
+                };
+                
+                fetch('/api/detections', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(errorData)
+                })
+                .then(response => {
+                    if (response.ok) {
+                        showResult('result5', '✅ Error reported to backend successfully', false);
+                    } else {
+                        showResult('result5', '❌ Failed to report error to backend', false);
+                    }
+                })
+                .catch(e => {
+                    showResult('result5', '❌ Backend error: ' + e.message, false);
+                });
+            });
+    }
+    
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Listen for fingerprinting alerts
