@@ -3,7 +3,7 @@
 
 // Store detected fingerprinting attempts
 let detectedFingerprinting = [];
-const API_URL = 'http://0.0.0.0:5001';
+const API_URL = 'http://0.0.0.0:8080';
 
 // Initialize detection counter
 chrome.storage.local.get('detectionCount', function(data) {

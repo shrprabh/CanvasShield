@@ -70,4 +70,4 @@ def get_stats():
     })
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001)  # Changed port to 5001 since 5000 was in use
+    app.run(host='0.0.0.0', port=8080)  # Changed port to avoid conflicts

@@ -307,7 +307,7 @@
                 console.log('Canvas fingerprinting detected!', method, scriptUrl);
                 
                 // Send to API
-                fetch('http://0.0.0.0:5001/api/detections', {
+                fetch('http://0.0.0.0:8080/api/detections', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
