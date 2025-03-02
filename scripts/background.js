@@ -1,7 +1,6 @@
-// Storage for detections when server is unavailable
+// Storage for detections
 let detections = [];
 let isDetectionEnabled = true;
-const API_URL = "http://127.0.0.1:5001";
 
 // Initialize from storage
 chrome.storage.local.get(
@@ -57,15 +56,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       detections.push(detection);
       chrome.storage.local.set({ detections: detections });
       updateBadge();
-
-      // Try to send to server
-      fetch(`${API_URL}/api/detections`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(detection),
-      }).catch((err) =>
-        console.log("Server unavailable, detection stored locally only")
-      );
     }
   }
 

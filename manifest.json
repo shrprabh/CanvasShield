@@ -11,6 +11,9 @@
       "128": "assets/icon.svg"
     }
   },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self' https://cdnjs.cloudflare.com"
+  },
   "background": {
     "service_worker": "scripts/background.js",
     "type": "module"
@@ -26,16 +29,9 @@
     "48": "assets/icon.svg",
     "128": "assets/icon.svg"
   },
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "canvas-fingerprint-detector@example.com",
-      "strict_min_version": "109.0"
-    }
-  },
-  "host_permissions": ["http://127.0.0.1:5001/*"],
   "web_accessible_resources": [
     {
-      "resources": ["scripts/inject.js"],
+      "resources": ["scripts/inject.js", "lib/chart.min.js"],
       "matches": ["<all_urls>"]
     }
   ]

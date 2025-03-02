@@ -1,6 +1,3 @@
-// Configuration
-const API_URL = "http://127.0.0.1:5001";
-
 document.addEventListener("DOMContentLoaded", () => {
   // Get DOM elements
   const attemptCount = document.getElementById("attemptCount");
@@ -21,34 +18,12 @@ document.addEventListener("DOMContentLoaded", () => {
   exportBtn.addEventListener("click", exportDetections);
   clearBtn.addEventListener("click", clearDetections);
 
-  // Check server connectivity
-  let isServerConnected = false;
-  function checkServer() {
-    fetch(`${API_URL}/api/stats`)
-      .then((response) => {
-        isServerConnected = true;
-        statusIndicator.textContent = "Connected";
-        statusIndicator.className = "status-safe";
-        return response.json();
-      })
-      .then((data) => {
-        // Update stats from server data
-        attemptCount.textContent = data.total_detections || 0;
-        domainCount.textContent = data.unique_domains || 0;
-        // Load detections from server
-        loadDetections();
-      })
-      .catch((err) => {
-        console.error("Cannot connect to server:", err);
-        isServerConnected = false;
-        statusIndicator.textContent = "Offline";
-        statusIndicator.className = "status-warning";
-        // Use local storage as fallback
-        loadFromLocalStorage();
-      });
-  }
+  // Load data immediately
+  statusIndicator.textContent = "Local Mode";
+  statusIndicator.className = "status-safe";
+  loadDetectionsFromStorage();
 
-  function loadFromLocalStorage() {
+  function loadDetectionsFromStorage() {
     chrome.storage.local.get(["detections"], function (result) {
       const detections = result.detections || [];
       attemptCount.textContent = detections.length;
@@ -62,41 +37,16 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       domainCount.textContent = domains.size;
 
-      // Display detections from local storage
+      // Display detections
       displayDetections(detections);
-      // Initialize chart with local storage data
+      // Initialize chart
       initChart(detections);
+
+      // Check current site status
+      checkCurrentSite();
     });
   }
 
-  function loadDetections() {
-    fetch(`${API_URL}/api/detections`)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then((data) => {
-        // Debug logging
-        console.log("Detections loaded:", data);
-
-        // Ensure data is an array
-        const detections = Array.isArray(data) ? data : [];
-
-        displayDetections(detections);
-        // Initialize chart with server data
-        initChart(detections);
-      })
-      .catch((err) => {
-        console.error("Error loading detections:", err);
-        // Check if the detections list element exists
-        const detectionsListEl = document.getElementById("detectionsList");
-        if (detectionsListEl) {
-          detectionsListEl.innerHTML = `<div class="no-detections">Error loading detections: ${err.message}</div>`;
-        }
-      });
-  }
   function displayDetections(data) {
     // Get the detections list element
     const detectionsListEl = document.getElementById("detectionsList");
@@ -151,16 +101,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Create the HTML for this item
         item.innerHTML = `
-          <div class="detection-site">
-            ${domain}
-          </div>
-          <div class="detection-info">
-            <div class="detection-method">Method: ${
-              detection.method || "unknown"
-            }</div>
-            <div class="detection-time">${timeString}</div>
-          </div>
-        `;
+            <div class="detection-site">
+              ${domain}
+            </div>
+            <div class="detection-info">
+              <div class="detection-method">Method: ${
+                detection.method || "unknown"
+              }</div>
+              <div class="detection-time">${timeString}</div>
+            </div>
+          `;
 
         detectionsListEl.appendChild(item);
       } catch (err) {
@@ -173,10 +123,18 @@ document.addEventListener("DOMContentLoaded", () => {
   function initChart(data) {
     // First check if Chart is defined
     if (typeof Chart === "undefined") {
-      console.error("Chart.js is not loaded!");
+      console.log("Chart.js not available - disabling chart visualization");
+
+      // Hide chart container
+      const chartContainer = document.querySelector(".chart-container");
+      if (chartContainer) {
+        chartContainer.style.display = "none";
+      }
+
       return;
     }
 
+    // Rest of your chart initialization code
     if (!chartCanvas) {
       console.warn("Chart canvas element not found");
       return;
@@ -253,33 +211,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function checkCurrentSite() {
     try {
-      // Get current tab info - wrapped in try/catch for testing outside extension
+      // Get current tab info
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs && tabs[0] && tabs[0].url) {
           const currentUrl = new URL(tabs[0].url).hostname;
 
-          // Check if current site has fingerprinting attempts
-          if (isServerConnected) {
-            // Check server for detections
-            fetch(`${API_URL}/api/detections?domain=${currentUrl}`)
-              .then((response) => response.json())
-              .then((data) => {
-                if (data && data.length > 0) {
-                  siteStatus.textContent = "Fingerprinting Detected";
-                  siteStatus.className = "status-danger";
-                } else {
-                  siteStatus.textContent = "Safe";
-                  siteStatus.className = "status-safe";
-                }
-              })
-              .catch((err) => {
-                console.error("Error checking site status:", err);
-                checkLocalStorageForCurrentSite(currentUrl);
-              });
-          } else {
-            // Use local storage
-            checkLocalStorageForCurrentSite(currentUrl);
-          }
+          // Check local storage for detections on this site
+          chrome.storage.local.get(["detections"], function (result) {
+            const detections = result.detections || [];
+            const siteDetections = detections.filter((d) => {
+              try {
+                return new URL(d.url).hostname === currentUrl;
+              } catch (e) {
+                return false;
+              }
+            });
+
+            if (siteDetections.length > 0) {
+              siteStatus.textContent = "Fingerprinting Detected";
+              siteStatus.className = "status-danger";
+            } else {
+              siteStatus.textContent = "Safe";
+              siteStatus.className = "status-safe";
+            }
+          });
         }
       });
     } catch (e) {
@@ -289,63 +244,21 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function checkLocalStorageForCurrentSite(currentUrl) {
-    chrome.storage.local.get(["detections"], function (result) {
-      const detections = result.detections || [];
-      const siteDetections = detections.filter((d) => {
-        try {
-          return new URL(d.url).hostname === currentUrl;
-        } catch (e) {
-          return false;
-        }
-      });
-
-      if (siteDetections.length > 0) {
-        siteStatus.textContent = "Fingerprinting Detected";
-        siteStatus.className = "status-danger";
-      } else {
-        siteStatus.textContent = "Safe";
-        siteStatus.className = "status-safe";
-      }
-    });
-  }
-
   function toggleDetectionStatus() {
     const isActive = toggleDetection.checked;
 
-    // Check if we're in extension context
-    try {
-      // Send message to background script
-      chrome.runtime.sendMessage(
-        {
-          action: isActive ? "enableDetection" : "disableDetection",
-        },
-        (response) => {
-          console.log("Detection status updated:", isActive);
-        }
-      );
-    } catch (e) {
-      console.log("Testing mode - detection toggle:", isActive);
-    }
+    // Send message to background script
+    chrome.runtime.sendMessage(
+      {
+        action: isActive ? "enableDetection" : "disableDetection",
+      },
+      (response) => {
+        console.log("Detection status updated:", isActive);
+      }
+    );
   }
 
   function exportDetections() {
-    if (isServerConnected) {
-      fetch(`${API_URL}/api/detections`)
-        .then((response) => response.json())
-        .then((data) => {
-          downloadDetections(data);
-        })
-        .catch((err) => {
-          console.error("Error exporting from server:", err);
-          exportFromLocalStorage();
-        });
-    } else {
-      exportFromLocalStorage();
-    }
-  }
-
-  function exportFromLocalStorage() {
     chrome.storage.local.get(["detections"], function (result) {
       downloadDetections(result.detections || []);
     });
@@ -383,13 +296,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function clearDetections() {
     if (confirm("Are you sure you want to clear all detection history?")) {
-      // Clear server data if connected
-      if (isServerConnected) {
-        fetch(`${API_URL}/api/detections`, { method: "DELETE" })
-          .then((response) => response.json())
-          .catch((err) => console.error("Error clearing server data:", err));
-      }
-
       // Clear local storage and badge
       chrome.runtime.sendMessage({ action: "clearDetections" }, (response) => {
         console.log("Detections cleared", response);
@@ -411,20 +317,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Initialize
-  checkServer();
-  checkCurrentSite();
-
   // Check detection state
-  try {
-    chrome.runtime.sendMessage({ action: "getDetectionState" }, (response) => {
-      toggleDetection.checked = response.isEnabled !== false;
-    });
-  } catch (e) {
-    // Default to enabled in test mode
-    toggleDetection.checked = true;
-  }
+  chrome.runtime.sendMessage({ action: "getDetectionState" }, (response) => {
+    toggleDetection.checked = response.isEnabled !== false;
+  });
 
-  // Refresh data every 5 seconds
-  setInterval(checkServer, 5000);
+  // Refresh data periodically
+  setInterval(loadDetectionsFromStorage, 5000);
 });
