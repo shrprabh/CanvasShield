@@ -1,343 +1,370 @@
-
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Canvas Fingerprinting Detector</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
     <style>
-        :root {
-            --primary-color: #4361ee;
-            --secondary-color: #3f37c9;
-            --accent-color: #4895ef;
-            --danger-color: #e63946;
-            --success-color: #4caf50;
-            --light-color: #f8f9fa;
-            --dark-color: #212529;
-            --card-shadow: 0 8px 15px rgba(0,0,0,0.1);
-        }
-        
-        body {
-            padding: 30px;
-            background-color: #f0f2f5;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: var(--dark-color);
-        }
-        
-        .main-container {
-            max-width: 800px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 30px;
-            border-radius: 16px;
-            box-shadow: var(--card-shadow);
-            transition: all 0.3s ease;
-        }
-        
-        .header {
-            text-align: center;
-            margin-bottom: 35px;
-        }
-        
-        .header h1 {
-            font-weight: 700;
-            color: var(--primary-color);
-            margin-bottom: 10px;
-        }
-        
-        .header p.lead {
-            color: #666;
-            font-size: 1.1rem;
-        }
-        
-        .card {
-            margin-bottom: 25px;
-            border: none;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-        
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-        }
-        
-        .card-header {
-            background-color: #f8f9fa;
-            font-weight: 600;
-            padding: 15px 20px;
-        }
-        
-        .card-body {
-            padding: 20px;
-        }
-        
-        .test-area {
-            margin-top: 45px;
-            padding: 25px;
-            background-color: #fafafa;
-            border-radius: 14px;
-            box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
-        }
-        
-        #fingerprint-canvas {
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
-            margin-bottom: 15px;
-        }
-        
-        .stats-value {
-            font-size: 2.25rem;
-            font-weight: 700;
-            color: var(--primary-color);
-            transition: all 0.3s ease;
-        }
-        
-        .detection-item {
-            border-left: 4px solid var(--primary-color);
-            padding: 12px 15px;
-            margin-bottom: 12px;
-            background-color: #f8f9fa;
-            border-radius: 0 8px 8px 0;
-            transition: all 0.2s ease;
-        }
-        
-        .detection-item:hover {
-            border-left-width: 6px;
-            background-color: #f1f3f5;
-            transform: translateX(3px);
-        }
-        
-        .btn {
-            padding: 8px 20px;
-            border-radius: 8px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-        }
-        
-        .btn-primary {
-            background-color: var(--primary-color);
-            border-color: var(--primary-color);
-        }
-        
-        .btn-primary:hover {
-            background-color: var(--secondary-color);
-            border-color: var(--secondary-color);
-        }
-        
-        .btn-secondary {
-            background-color: #6c757d;
-            border-color: #6c757d;
-        }
-        
-        .alert {
-            border-radius: 8px;
-            border: none;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
+      :root {
+        --primary-color: #4361ee;
+        --secondary-color: #3f37c9;
+        --accent-color: #4895ef;
+        --danger-color: #e63946;
+        --success-color: #4caf50;
+        --light-color: #f8f9fa;
+        --dark-color: #212529;
+        --card-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+      }
+
+      body {
+        padding: 30px;
+        background-color: #f0f2f5;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--dark-color);
+      }
+
+      .main-container {
+        max-width: 800px;
+        margin: 0 auto;
+        background-color: white;
+        padding: 30px;
+        border-radius: 16px;
+        box-shadow: var(--card-shadow);
+        transition: all 0.3s ease;
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 35px;
+      }
+
+      .header h1 {
+        font-weight: 700;
+        color: var(--primary-color);
+        margin-bottom: 10px;
+      }
+
+      .header p.lead {
+        color: #666;
+        font-size: 1.1rem;
+      }
+
+      .card {
+        margin-bottom: 25px;
+        border: none;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      }
+
+      .card-header {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        padding: 15px 20px;
+      }
+
+      .card-body {
+        padding: 20px;
+      }
+
+      .test-area {
+        margin-top: 45px;
+        padding: 25px;
+        background-color: #fafafa;
+        border-radius: 14px;
+        box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
+      }
+
+      #fingerprint-canvas {
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+        margin-bottom: 15px;
+      }
+
+      .stats-value {
+        font-size: 2.25rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        transition: all 0.3s ease;
+      }
+
+      .detection-item {
+        border-left: 4px solid var(--primary-color);
+        padding: 12px 15px;
+        margin-bottom: 12px;
+        background-color: #f8f9fa;
+        border-radius: 0 8px 8px 0;
+        transition: all 0.2s ease;
+      }
+
+      .detection-item:hover {
+        border-left-width: 6px;
+        background-color: #f1f3f5;
+        transform: translateX(3px);
+      }
+
+      .btn {
+        padding: 8px 20px;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+      }
+
+      .btn-primary {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+      }
+
+      .btn-primary:hover {
+        background-color: var(--secondary-color);
+        border-color: var(--secondary-color);
+      }
+
+      .btn-secondary {
+        background-color: #6c757d;
+        border-color: #6c757d;
+      }
+
+      .alert {
+        border-radius: 8px;
+        border: none;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="main-container">
-        <div class="header">
-            <h1>Canvas Fingerprinting Detector</h1>
-            <p class="lead">Monitor, detect, and analyze canvas fingerprinting attempts</p>
-        </div>
-        
-        <div class="row">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Total Detections</h5>
-                        <p class="stats-value" id="totalDetections">0</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Unique Domains</h5>
-                        <p class="stats-value" id="uniqueDomains">0</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="card">
-            <div class="card-header">
-                Recent Detections
-            </div>
+      <div class="header">
+        <h1>Canvas Fingerprinting Detector</h1>
+        <p class="lead">
+          Monitor, detect, and analyze canvas fingerprinting attempts
+        </p>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card">
             <div class="card-body">
-                <div id="recentDetections">
-                    <div class="text-center text-muted">No detections yet</div>
-                </div>
+              <h5 class="card-title">Total Detections</h5>
+              <p class="stats-value" id="totalDetections">0</p>
             </div>
+          </div>
         </div>
-        
-        <div class="test-area">
-            <h4>Test Fingerprinting Detection</h4>
-            <p>This section contains a canvas fingerprinting test that simulates a common fingerprinting technique.</p>
-            
-            <div class="mb-3">
-                <canvas id="fingerprint-canvas" width="300" height="150"></canvas>
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title">Unique Domains</h5>
+              <p class="stats-value" id="uniqueDomains">0</p>
             </div>
-            
-            <button class="btn btn-primary" id="testFingerprintBtn">Run Fingerprint Test</button>
-            <button class="btn btn-secondary ms-2" id="clearTestBtn">Clear Canvas</button>
-            
-            <div class="mt-3">
-                <div class="alert alert-info" id="testResult" style="display: none;"></div>
-            </div>
+          </div>
         </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">Recent Detections</div>
+        <div class="card-body">
+          <div id="recentDetections">
+            <div class="text-center text-muted">No detections yet</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="test-area">
+        <h4>Test Fingerprinting Detection</h4>
+        <p>
+          This section contains a canvas fingerprinting test that simulates a
+          common fingerprinting technique.
+        </p>
+
+        <div class="mb-3">
+          <canvas id="fingerprint-canvas" width="300" height="150"></canvas>
+        </div>
+
+        <button class="btn btn-primary" id="testFingerprintBtn">
+          Run Fingerprint Test
+        </button>
+        <button class="btn btn-secondary ms-2" id="clearTestBtn">
+          Clear Canvas
+        </button>
+
+        <div class="mt-3">
+          <div
+            class="alert alert-info"
+            id="testResult"
+            style="display: none"
+          ></div>
+        </div>
+      </div>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const API_URL = 'http://0.0.0.0:5001';
-            const canvas = document.getElementById('fingerprint-canvas');
-            const ctx = canvas.getContext('2d');
-            const testFingerprintBtn = document.getElementById('testFingerprintBtn');
-            const clearTestBtn = document.getElementById('clearTestBtn');
-            const testResult = document.getElementById('testResult');
-            
-            // Load stats
-            function loadStats() {
-                fetch(`${API_URL}/api/stats`)
-                    .then(response => response.json())
-                    .then(data => {
-                        document.getElementById('totalDetections').textContent = data.total_detections;
-                        document.getElementById('uniqueDomains').textContent = data.unique_domains;
-                        
-                        const recentDetectionsEl = document.getElementById('recentDetections');
-                        if (data.recent_detections.length === 0) {
-                            recentDetectionsEl.innerHTML = '<div class="text-center text-muted">No detections yet</div>';
-                            return;
-                        }
-                        
-                        recentDetectionsEl.innerHTML = '';
-                        data.recent_detections.forEach(detection => {
-                            const time = new Date(detection.timestamp).toLocaleString();
-                            const item = document.createElement('div');
-                            item.className = 'detection-item';
-                            item.innerHTML = `
+      document.addEventListener("DOMContentLoaded", function () {
+        const API_URL = "http://127.0.0.1:5001";
+        const canvas = document.getElementById("fingerprint-canvas");
+        const ctx = canvas.getContext("2d");
+        const testFingerprintBtn =
+          document.getElementById("testFingerprintBtn");
+        const clearTestBtn = document.getElementById("clearTestBtn");
+        const testResult = document.getElementById("testResult");
+
+        // Load stats
+        function loadStats() {
+          fetch(`${API_URL}/api/stats`)
+            .then((response) => response.json())
+            .then((data) => {
+              document.getElementById("totalDetections").textContent =
+                data.total_detections;
+              document.getElementById("uniqueDomains").textContent =
+                data.unique_domains;
+
+              const recentDetectionsEl =
+                document.getElementById("recentDetections");
+
+              // Check if recent_detections exists, if not, use an empty array
+              const recentDetections = data.recent_detections || [];
+
+              if (recentDetections.length === 0) {
+                recentDetectionsEl.innerHTML =
+                  '<div class="text-center text-muted">No detections yet</div>';
+                return;
+              }
+
+              recentDetectionsEl.innerHTML = "";
+              data.recent_detections.forEach((detection) => {
+                const time = new Date(detection.timestamp).toLocaleString();
+                const item = document.createElement("div");
+                item.className = "detection-item";
+                item.innerHTML = `
                                 <div><strong>${detection.domain}</strong> <small class="text-muted">${time}</small></div>
                                 <div>Method: ${detection.method}</div>
                                 <div class="small text-truncate">${detection.url}</div>
                             `;
-                            recentDetectionsEl.appendChild(item);
-                        });
-                    })
-                    .catch(error => {
-                        console.error('Error loading stats:', error);
-                    });
-            }
-            
-            // Run fingerprinting test
-            testFingerprintBtn.addEventListener('click', function() {
-                // Clear canvas
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                // Draw text (common in fingerprinting)
-                ctx.font = "14px Arial";
-                ctx.fillStyle = "#333";
-                ctx.fillText("Cwm fjordbank glyphs vext quiz", 10, 50);
-                
-                // Draw some shapes
-                ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
-                ctx.fillRect(25, 60, 50, 50);
-                
-                ctx.fillStyle = "rgba(0, 255, 0, 0.5)";
-                ctx.fillRect(45, 80, 50, 50);
-                
-                // Get data URL (this should trigger detection)
-                const dataUrl = canvas.toDataURL();
-                
-                // Show result
-                testResult.style.display = 'block';
-                testResult.className = 'alert alert-info';
-                testResult.textContent = 'Running fingerprint test...';
-                
-                // Check if detection was triggered after a delay
-                setTimeout(() => {
-                    fetch(`${API_URL}/api/detections`)
-                        .then(response => response.json())
-                        .then(detections => {
-                            // Check for recent detection (in the last second)
-                            const recentDetection = detections.find(d => 
-                                (new Date() - new Date(d.timestamp)) < 5000 && 
-                                d.url.includes(window.location.hostname)
-                            );
-                            
-                            if (recentDetection) {
-                                testResult.className = 'alert alert-success';
-                                testResult.innerHTML = '<strong>Success!</strong> Fingerprinting detected on this page.';
-                            } else {
-                                testResult.className = 'alert alert-warning';
-                                testResult.innerHTML = '<strong>Note:</strong> Fingerprinting not detected. If this is unexpected, check that the detector is properly installed.';
-                            }
-                            
-                            // Reload stats
-                            loadStats();
-                        });
-                }, 1000);
-            });
-            
-            // Clear test canvas
-            clearTestBtn.addEventListener('click', function() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                testResult.style.display = 'none';
-            });
-            
-            // Initial load
-            loadStats();
-            setInterval(loadStats, 5000); // Refresh every 5 seconds
-        });
-    </script>
-    
-    <!-- Canvas fingerprinting detector script -->
-    <script src="scripts/detector.js"></script>
-    <script>
-        // Initialize detector with callback function
-        if (window.__canvasWatcher) {
-            window.__canvasWatcher.init(function(method, scriptUrl) {
-                console.log('Canvas fingerprinting detected!', method, scriptUrl);
-                
-                // Send to API
-                fetch('http://0.0.0.0:8080/api/detections', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        url: window.location.href,
-                        timestamp: Date.now(),
-                        method: method,
-                        details: {
-                            scriptUrl: scriptUrl,
-                            detectionMethod: 'pattern-matching'
-                        }
-                    })
-                });
-                
-                // Show alert if not already shown
-                if (!document.querySelector('.fingerprint-alert')) {
-                    const alert = document.createElement('div');
-                    alert.className = 'alert alert-warning fingerprint-alert';
-                    alert.style.position = 'fixed';
-                    alert.style.bottom = '20px';
-                    alert.style.right = '20px';
-                    alert.style.zIndex = '9999';
-                    alert.style.maxWidth = '300px';
-                    alert.innerHTML = '<strong>Canvas Fingerprinting Detected!</strong><br>A script on this page is attempting to fingerprint your browser.';
-                    document.body.appendChild(alert);
-                    
-                    // Remove after 5 seconds
-                    setTimeout(() => alert.remove(), 5000);
-                }
+                recentDetectionsEl.appendChild(item);
+              });
+            })
+            .catch((error) => {
+              console.error("Error loading stats:", error);
             });
         }
+
+        // Run fingerprinting test
+        testFingerprintBtn.addEventListener("click", function () {
+          // Clear canvas
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+          // Draw text (common in fingerprinting)
+          ctx.font = "14px Arial";
+          ctx.fillStyle = "#333";
+          ctx.fillText("Cwm fjordbank glyphs vext quiz", 10, 50);
+
+          // Draw some shapes
+          ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
+          ctx.fillRect(25, 60, 50, 50);
+
+          ctx.fillStyle = "rgba(0, 255, 0, 0.5)";
+          ctx.fillRect(45, 80, 50, 50);
+
+          // Get data URL (this should trigger detection)
+          const dataUrl = canvas.toDataURL();
+
+          // Show result
+          testResult.style.display = "block";
+          testResult.className = "alert alert-info";
+          testResult.textContent = "Running fingerprint test...";
+
+          // Check if detection was triggered after a delay
+          setTimeout(() => {
+            fetch(`${API_URL}/api/detections`)
+              .then((response) => response.json())
+              .then((detections) => {
+                // Check for recent detection (in the last second)
+                const recentDetection = detections.find(
+                  (d) =>
+                    new Date() - new Date(d.timestamp) < 5000 &&
+                    d.url.includes(window.location.hostname)
+                );
+
+                if (recentDetection) {
+                  testResult.className = "alert alert-success";
+                  testResult.innerHTML =
+                    "<strong>Success!</strong> Fingerprinting detected on this page.";
+                } else {
+                  testResult.className = "alert alert-warning";
+                  testResult.innerHTML =
+                    "<strong>Note:</strong> Fingerprinting not detected. If this is unexpected, check that the detector is properly installed.";
+                }
+
+                // Reload stats
+                loadStats();
+              });
+          }, 1000);
+        });
+
+        // Clear test canvas
+        clearTestBtn.addEventListener("click", function () {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          testResult.style.display = "none";
+        });
+
+        // Initial load
+        loadStats();
+        setInterval(loadStats, 5000); // Refresh every 5 seconds
+      });
     </script>
-</body>
+
+    <!-- Canvas fingerprinting detector script -->
+    <script src="ml-detector.js"></script>
+    <script>
+      // Initialize detector with callback function
+      if (window.__canvasWatcher) {
+        window.__canvasWatcher.init(function (method, scriptUrl) {
+          console.log("Canvas fingerprinting detected!", method, scriptUrl);
+
+          // Send to API
+          // Change in index.html around line 330
+          fetch("http://127.0.0.1:5001/api/detections", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              url: window.location.href,
+              timestamp: Date.now(),
+              method: method,
+              details: {
+                scriptUrl: scriptUrl,
+                detectionMethod: "pattern-matching",
+              },
+            }),
+          });
+
+          // Show alert if not already shown
+          if (!document.querySelector(".fingerprint-alert")) {
+            const alert = document.createElement("div");
+            alert.className = "alert alert-warning fingerprint-alert";
+            alert.style.position = "fixed";
+            alert.style.bottom = "20px";
+            alert.style.right = "20px";
+            alert.style.zIndex = "9999";
+            alert.style.maxWidth = "300px";
+            alert.innerHTML =
+              "<strong>Canvas Fingerprinting Detected!</strong><br>A script on this page is attempting to fingerprint your browser.";
+            document.body.appendChild(alert);
+
+            // Remove after 5 seconds
+            setTimeout(() => alert.remove(), 5000);
+          }
+        });
+      }
+    </script>
+  </body>
 </html>
