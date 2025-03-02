@@ -1,6 +1,6 @@
 body {
-  width: 550px;
-  min-height: 500px;
+  width: 700px;
+  min-height: 600px;
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   margin: 0;
   padding: 0;
@@ -10,13 +10,7 @@ body {
   padding: 16px;
 }
 
-.chart-container {
-  margin: 20px 0;
-  height: 200px;
-  width: 100%;
-  position: relative;
-}
-
+/* Header Styles */
 .header {
   display: flex;
   justify-content: space-between;
@@ -37,6 +31,30 @@ h5 {
   color: #333;
 }
 
+/* Chart Styles */
+.charts-row {
+  display: flex;
+  gap: 25px;
+  margin: 15px 0 25px 0;
+}
+
+.charts-row .chart-container {
+  flex: 1;
+  min-height: 250px;
+  position: relative;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #eee;
+}
+
+.chart-container {
+  margin: 20px 0;
+  height: 250px;
+  width: 100%;
+  position: relative;
+}
+
+/* Stats Styles */
 .stats {
   margin-bottom: 15px;
 }
@@ -64,6 +82,7 @@ h5 {
   font-weight: 600;
 }
 
+/* Detection List Styles */
 .detection-list {
   margin-bottom: 15px;
   max-height: 200px;
@@ -92,11 +111,7 @@ h5 {
   text-align: right;
 }
 
-.detection-method {
-  color: #6c757d;
-  font-size: 12px;
-}
-
+.detection-method,
 .detection-time {
   color: #6c757d;
   font-size: 12px;
@@ -109,6 +124,7 @@ h5 {
   padding: 10px;
 }
 
+/* Action Buttons */
 .actions {
   display: flex;
   justify-content: space-between;
@@ -173,7 +189,6 @@ h5 {
   right: 0;
   bottom: 0;
   background-color: #ccc;
-  -webkit-transition: 0.4s;
   transition: 0.4s;
   border-radius: 24px;
 }
@@ -196,59 +211,4 @@ input:checked + .slider {
 
 input:checked + .slider:before {
   transform: translateX(22px);
-}
-
-.round {
-  border-radius: 24px;
-}
-/* Add to popup.css if the toggle switch isn't styled properly */
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 46px;
-  height: 24px;
-}
-
-.switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #ccc;
-  transition: 0.4s;
-}
-
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 18px;
-  width: 18px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  transition: 0.4s;
-}
-
-input:checked + .slider {
-  background-color: #4361ee;
-}
-
-input:checked + .slider:before {
-  transform: translateX(22px);
-}
-
-.round {
-  border-radius: 24px;
-}
-
-.slider.round:before {
-  border-radius: 50%;
 }

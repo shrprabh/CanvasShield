@@ -9,9 +9,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const clearBtn = document.getElementById("clearBtn");
   const statusIndicator = document.getElementById("statusIndicator");
   const chartCanvas = document.getElementById("detectionChart");
+  const domainChartCanvas = document.getElementById("domainChart"); // Add domain chart canvas
 
   // Chart variables
   let detectionChart = null;
+  let domainChart = null; // Add domain chart variable
 
   // Event listeners
   toggleDetection.addEventListener("change", toggleDetectionStatus);
@@ -39,8 +41,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Display detections
       displayDetections(detections);
-      // Initialize chart
+
+      // Initialize both charts
       initChart(detections);
+      initDomainChart(detections); // Add domain chart initialization
 
       // Check current site status
       checkCurrentSite();
@@ -101,16 +105,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Create the HTML for this item
         item.innerHTML = `
-            <div class="detection-site">
-              ${domain}
-            </div>
-            <div class="detection-info">
-              <div class="detection-method">Method: ${
-                detection.method || "unknown"
-              }</div>
-              <div class="detection-time">${timeString}</div>
-            </div>
-          `;
+              <div class="detection-site">
+                ${domain}
+              </div>
+              <div class="detection-info">
+                <div class="detection-method">Method: ${
+                  detection.method || "unknown"
+                }</div>
+                <div class="detection-time">${timeString}</div>
+              </div>
+            `;
 
         detectionsListEl.appendChild(item);
       } catch (err) {
@@ -125,11 +129,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (typeof Chart === "undefined") {
       console.log("Chart.js not available - disabling chart visualization");
 
-      // Hide chart container
-      const chartContainer = document.querySelector(".chart-container");
-      if (chartContainer) {
-        chartContainer.style.display = "none";
-      }
+      // Hide chart containers
+      const chartContainers = document.querySelectorAll(".chart-container");
+      chartContainers.forEach((container) => {
+        container.style.display = "none";
+      });
 
       return;
     }
@@ -205,6 +209,115 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       } catch (e) {
         console.error("Error creating chart:", e);
+      }
+    }
+  }
+
+  // Initialize domain chart visualization
+  function initDomainChart(data) {
+    // Check if Chart is defined (already checked in initChart)
+    if (typeof Chart === "undefined") {
+      return; // Will be handled by initChart
+    }
+
+    if (!domainChartCanvas) {
+      console.warn("Domain chart canvas element not found");
+      return;
+    }
+
+    // Count detections by domain
+    const domainCounts = {};
+
+    if (data && Array.isArray(data)) {
+      data.forEach((detection) => {
+        try {
+          let domain = "unknown";
+          if (detection.domain) {
+            domain = detection.domain;
+          } else if (detection.url) {
+            domain = new URL(detection.url).hostname;
+          }
+
+          domainCounts[domain] = (domainCounts[domain] || 0) + 1;
+        } catch (e) {
+          console.warn("Could not parse domain:", e);
+        }
+      });
+    }
+
+    // Sort domains by count and take top 5
+    const topDomains = Object.entries(domainCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+
+    const labels = topDomains.map((item) => item[0]);
+    const counts = topDomains.map((item) => item[1]);
+
+    // Create or update chart
+    if (domainChart) {
+      domainChart.data.labels = labels;
+      domainChart.data.datasets[0].data = counts;
+      domainChart.update();
+    } else {
+      try {
+        const ctx = domainChartCanvas.getContext("2d");
+        domainChart = new Chart(ctx, {
+          type: "pie",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                data: counts,
+                backgroundColor: [
+                  "rgba(67, 97, 238, 0.7)",
+                  "rgba(255, 99, 132, 0.7)",
+                  "rgba(255, 206, 86, 0.7)",
+                  "rgba(75, 192, 192, 0.7)",
+                  "rgba(153, 102, 255, 0.7)",
+                ],
+                borderColor: [
+                  "rgba(67, 97, 238, 1)",
+                  "rgba(255, 99, 132, 1)",
+                  "rgba(255, 206, 86, 1)",
+                  "rgba(75, 192, 192, 1)",
+                  "rgba(153, 102, 255, 1)",
+                ],
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: "right",
+                align: "center",
+                labels: {
+                  boxWidth: 10,
+                  font: {
+                    size: 9,
+                  },
+                  padding: 10,
+                },
+              },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    return context.label + ": " + context.raw + " detections";
+                  },
+                },
+              },
+            },
+            layout: {
+              padding: {
+                right: 10,
+              },
+            },
+          },
+        });
+      } catch (e) {
+        console.error("Error creating domain chart:", e);
       }
     }
   }
@@ -307,10 +420,16 @@ document.addEventListener("DOMContentLoaded", () => {
       detectionsList.innerHTML =
         '<div class="no-detections">No fingerprinting attempts detected yet</div>';
 
-      // Reset chart if it exists
+      // Reset charts if they exist
       if (detectionChart) {
         detectionChart.data.datasets[0].data = [0, 0, 0, 0, 0, 0, 0];
         detectionChart.update();
+      }
+
+      if (domainChart) {
+        domainChart.data.labels = [];
+        domainChart.data.datasets[0].data = [];
+        domainChart.update();
       }
 
       alert("Detection history cleared");
