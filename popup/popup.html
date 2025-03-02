@@ -1,15 +1,17 @@
-popup/popup.html -->
 <!DOCTYPE html>
+
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Canvas Fingerprint Detector</title>
-    <link rel="stylesheet" href="popup.css" />
+    <!-- Load Chart.js first and use a specific version -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
     />
+    <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
     <div class="container">
@@ -17,7 +19,6 @@ popup/popup.html -->
         <h4>Canvas Fingerprinting Detector</h4>
         <span id="statusIndicator" class="status-safe">Connected</span>
       </div>
-
       <div class="stats">
         <div class="stat-item">
           <div>Detection Active</div>
@@ -40,6 +41,10 @@ popup/popup.html -->
         </div>
       </div>
 
+      <div class="chart-container">
+        <canvas id="detectionChart"></canvas>
+      </div>
+
       <h5>Recent Detections</h5>
       <div class="detection-list" id="detectionsList">
         <div class="no-detections">No fingerprinting attempts detected yet</div>
@@ -47,10 +52,10 @@ popup/popup.html -->
 
       <div class="actions">
         <button id="exportBtn" class="btn btn-primary">
-          <i class="fas fa-download me-1"></i> Export Data
+          <i class="fas fa-download"></i> Export Data
         </button>
         <button id="clearBtn" class="btn btn-danger">
-          <i class="fas fa-trash me-1"></i> Clear History
+          <i class="fas fa-trash"></i> Clear History
         </button>
       </div>
     </div>

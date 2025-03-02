@@ -11,6 +11,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const exportBtn = document.getElementById("exportBtn");
   const clearBtn = document.getElementById("clearBtn");
   const statusIndicator = document.getElementById("statusIndicator");
+  const chartCanvas = document.getElementById("detectionChart");
+
+  // Chart variables
+  let detectionChart = null;
 
   // Event listeners
   toggleDetection.addEventListener("change", toggleDetectionStatus);
@@ -60,65 +64,191 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Display detections from local storage
       displayDetections(detections);
+      // Initialize chart with local storage data
+      initChart(detections);
     });
   }
 
   function loadDetections() {
     fetch(`${API_URL}/api/detections`)
-      .then((response) => response.json())
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.json();
+      })
       .then((data) => {
-        displayDetections(data);
+        // Debug logging
+        console.log("Detections loaded:", data);
+
+        // Ensure data is an array
+        const detections = Array.isArray(data) ? data : [];
+
+        displayDetections(detections);
+        // Initialize chart with server data
+        initChart(detections);
       })
       .catch((err) => {
         console.error("Error loading detections:", err);
-        detectionsList.innerHTML =
-          '<div class="no-detections">Error loading detections</div>';
+        // Check if the detections list element exists
+        const detectionsListEl = document.getElementById("detectionsList");
+        if (detectionsListEl) {
+          detectionsListEl.innerHTML = `<div class="no-detections">Error loading detections: ${err.message}</div>`;
+        }
       });
   }
-
   function displayDetections(data) {
-    if (!data || data.length === 0) {
-      detectionsList.innerHTML =
+    // Get the detections list element
+    const detectionsListEl = document.getElementById("detectionsList");
+    if (!detectionsListEl) {
+      console.error("Detections list element not found!");
+      return;
+    }
+
+    // Check if we have data and it's an array
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      detectionsListEl.innerHTML =
         '<div class="no-detections">No fingerprinting attempts detected yet</div>';
       return;
     }
 
     // Clear the list
-    detectionsList.innerHTML = "";
+    detectionsListEl.innerHTML = "";
 
-    // Add recent detections (limit to 5)
-    const recentDetections = data.slice(0, 5);
+    // Sort by timestamp (newest first) and take the top 5
+    const recentDetections = [...data]
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, 5);
+
+    // Add recent detections
     recentDetections.forEach((detection) => {
-      const item = document.createElement("div");
-      item.className = "detection-item";
-
-      // Create domain with icon
-      let domain;
       try {
-        domain = new URL(detection.url).hostname;
-      } catch (e) {
-        domain = detection.domain || "unknown";
+        const item = document.createElement("div");
+        item.className = "detection-item";
+
+        // Get domain safely
+        let domain = "unknown";
+        try {
+          if (detection.domain) {
+            domain = detection.domain;
+          } else if (detection.url) {
+            domain = new URL(detection.url).hostname;
+          }
+        } catch (e) {
+          console.warn("Could not parse URL:", detection.url);
+        }
+
+        // Format timestamp safely
+        let timeString = "unknown time";
+        try {
+          if (detection.timestamp) {
+            const date = new Date(detection.timestamp);
+            timeString = date.toLocaleString();
+          }
+        } catch (e) {
+          console.warn("Could not format timestamp:", detection.timestamp);
+        }
+
+        // Create the HTML for this item
+        item.innerHTML = `
+          <div class="detection-site">
+            ${domain}
+          </div>
+          <div class="detection-info">
+            <div class="detection-method">Method: ${
+              detection.method || "unknown"
+            }</div>
+            <div class="detection-time">${timeString}</div>
+          </div>
+        `;
+
+        detectionsListEl.appendChild(item);
+      } catch (err) {
+        console.error("Error creating detection item:", err, detection);
       }
-
-      // Format timestamp
-      const date = new Date(detection.timestamp);
-      const timeString = date.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-
-      item.innerHTML = `
-        <div class="detection-site">
-          <i class="fas fa-globe me-1"></i> ${domain}
-        </div>
-        <div class="detection-info">
-          <div class="detection-method">${detection.method}</div>
-          <div class="detection-time">${timeString}</div>
-        </div>
-      `;
-
-      detectionsList.appendChild(item);
     });
+  }
+
+  // Initialize chart visualization
+  function initChart(data) {
+    // First check if Chart is defined
+    if (typeof Chart === "undefined") {
+      console.error("Chart.js is not loaded!");
+      return;
+    }
+
+    if (!chartCanvas) {
+      console.warn("Chart canvas element not found");
+      return;
+    }
+
+    // Process data for the chart
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      return date.toLocaleDateString();
+    }).reverse();
+
+    // Count detections per day
+    const countsByDay = {};
+    last7Days.forEach((day) => (countsByDay[day] = 0));
+
+    // Count detections for each day
+    if (data && Array.isArray(data)) {
+      data.forEach((detection) => {
+        if (detection.timestamp) {
+          const date = new Date(detection.timestamp).toLocaleDateString();
+          if (countsByDay[date] !== undefined) {
+            countsByDay[date]++;
+          }
+        }
+      });
+    }
+
+    // Create or update chart
+    if (detectionChart) {
+      detectionChart.data.datasets[0].data = Object.values(countsByDay);
+      detectionChart.update();
+    } else {
+      try {
+        const ctx = chartCanvas.getContext("2d");
+        detectionChart = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: Object.keys(countsByDay),
+            datasets: [
+              {
+                label: "Fingerprinting Attempts",
+                data: Object.values(countsByDay),
+                backgroundColor: "rgba(67, 97, 238, 0.7)",
+                borderColor: "rgba(67, 97, 238, 1)",
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: true,
+                position: "top",
+              },
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  precision: 0,
+                },
+              },
+            },
+          },
+        });
+      } catch (e) {
+        console.error("Error creating chart:", e);
+      }
+    }
   }
 
   function checkCurrentSite() {
@@ -236,34 +366,6 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.removeChild(a);
   }
 
-  function clearDetections() {
-    if (confirm("Are you sure you want to clear all detection history?")) {
-      // Clear server data if connected
-      if (isServerConnected) {
-        fetch(`${API_URL}/api/detections`, { method: "DELETE" })
-          .then((response) => response.json())
-          .then((data) => {
-            console.log("Server data cleared");
-          })
-          .catch((err) => {
-            console.error("Error clearing server data:", err);
-          });
-      }
-
-      // Also clear local storage
-      chrome.storage.local.set({ detections: [] }, function () {
-        console.log("Local storage cleared");
-      });
-
-      // Update UI
-      attemptCount.textContent = "0";
-      domainCount.textContent = "0";
-      detectionsList.innerHTML =
-        '<div class="no-detections">No fingerprinting attempts detected yet</div>';
-      alert("Detection history cleared");
-    }
-  }
-
   function convertToCSV(data) {
     if (!data || data.length === 0) return "No data";
 
@@ -277,6 +379,36 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
     return [header, ...rows].join("\n");
+  }
+
+  function clearDetections() {
+    if (confirm("Are you sure you want to clear all detection history?")) {
+      // Clear server data if connected
+      if (isServerConnected) {
+        fetch(`${API_URL}/api/detections`, { method: "DELETE" })
+          .then((response) => response.json())
+          .catch((err) => console.error("Error clearing server data:", err));
+      }
+
+      // Clear local storage and badge
+      chrome.runtime.sendMessage({ action: "clearDetections" }, (response) => {
+        console.log("Detections cleared", response);
+      });
+
+      // Update UI
+      attemptCount.textContent = "0";
+      domainCount.textContent = "0";
+      detectionsList.innerHTML =
+        '<div class="no-detections">No fingerprinting attempts detected yet</div>';
+
+      // Reset chart if it exists
+      if (detectionChart) {
+        detectionChart.data.datasets[0].data = [0, 0, 0, 0, 0, 0, 0];
+        detectionChart.update();
+      }
+
+      alert("Detection history cleared");
+    }
   }
 
   // Initialize

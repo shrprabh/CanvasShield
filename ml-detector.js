@@ -113,6 +113,9 @@ class CanvasFingerprintClassifier {
 
 // Add canvas watcher implementation for the index.html to use
 window.__canvasWatcher = {
+  // Add a timestamp tracker to prevent duplicate detections
+  lastDetectionTime: {},
+
   init: function (callback) {
     console.log("Canvas fingerprinting detector initialized");
 
@@ -120,18 +123,41 @@ window.__canvasWatcher = {
     const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
     const originalGetImageData =
       CanvasRenderingContext2D.prototype.getImageData;
+    const self = this;
 
     HTMLCanvasElement.prototype.toDataURL = function () {
       const scriptUrl =
         new Error().stack.split("\n")[2]?.match(/https?:[^:]+/) || "unknown";
-      callback("toDataURL", scriptUrl);
+      const now = Date.now();
+
+      // Prevent duplicate detections within 100ms
+      const key = "toDataURL_" + scriptUrl;
+      if (
+        !self.lastDetectionTime[key] ||
+        now - self.lastDetectionTime[key] > 100
+      ) {
+        self.lastDetectionTime[key] = now;
+        callback("toDataURL", scriptUrl);
+      }
+
       return originalToDataURL.apply(this, arguments);
     };
 
     CanvasRenderingContext2D.prototype.getImageData = function () {
       const scriptUrl =
         new Error().stack.split("\n")[2]?.match(/https?:[^:]+/) || "unknown";
-      callback("getImageData", scriptUrl);
+      const now = Date.now();
+
+      // Prevent duplicate detections within 100ms
+      const key = "getImageData_" + scriptUrl;
+      if (
+        !self.lastDetectionTime[key] ||
+        now - self.lastDetectionTime[key] > 100
+      ) {
+        self.lastDetectionTime[key] = now;
+        callback("getImageData", scriptUrl);
+      }
+
       return originalGetImageData.apply(this, arguments);
     };
   },

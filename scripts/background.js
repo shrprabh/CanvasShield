@@ -43,19 +43,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
     }
 
-    // Store locally
-    detections.push(detection);
-    chrome.storage.local.set({ detections: detections });
-    updateBadge();
+    // Check for duplicate detection within 200ms with same method and URL
+    const isDuplicate = detections.some((existingDetection) => {
+      return (
+        existingDetection.url === detection.url &&
+        existingDetection.method === detection.method &&
+        Math.abs(existingDetection.timestamp - detection.timestamp) < 200
+      );
+    });
 
-    // Try to send to server
-    fetch(`${API_URL}/api/detections`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(detection),
-    }).catch((err) =>
-      console.log("Server unavailable, detection stored locally only")
-    );
+    if (!isDuplicate) {
+      // Store locally
+      detections.push(detection);
+      chrome.storage.local.set({ detections: detections });
+      updateBadge();
+
+      // Try to send to server
+      fetch(`${API_URL}/api/detections`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(detection),
+      }).catch((err) =>
+        console.log("Server unavailable, detection stored locally only")
+      );
+    }
   }
 
   // Handle detection toggle
@@ -72,6 +83,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Return current state
   else if (message.action === "getDetectionState") {
     sendResponse({ isEnabled: isDetectionEnabled });
+  }
+
+  // Clear detections
+  else if (message.action === "clearDetections") {
+    detections = [];
+    chrome.storage.local.set({ detections: [] });
+    updateBadge(); // Make sure badge is updated
+    sendResponse({ success: true });
   }
 
   return true; // Keep message port open for async response

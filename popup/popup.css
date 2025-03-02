@@ -1,12 +1,20 @@
 body {
   width: 550px;
-  min-height: 500px; /* Add this line to set minimum height */
+  min-height: 500px;
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   margin: 0;
   padding: 0;
 }
+
 .container {
   padding: 16px;
+}
+
+.chart-container {
+  margin: 20px 0;
+  height: 200px;
+  width: 100%;
+  position: relative;
 }
 
 .header {
@@ -23,6 +31,12 @@ body {
   color: #4361ee;
 }
 
+h5 {
+  margin-top: 20px;
+  margin-bottom: 10px;
+  color: #333;
+}
+
 .stats {
   margin-bottom: 15px;
 }
@@ -30,13 +44,18 @@ body {
 .stat-item {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   font-size: 14px;
   align-items: center;
 }
 
 .status-safe {
   color: #4caf50;
+  font-weight: 600;
+}
+
+.status-warning {
+  color: #ff9800;
   font-weight: 600;
 }
 
@@ -49,18 +68,14 @@ body {
   margin-bottom: 15px;
   max-height: 200px;
   overflow-y: auto;
-}
-
-.detection-list h5 {
-  font-size: 15px;
-  margin-bottom: 10px;
-  color: #212529;
+  border: 1px solid #eee;
+  border-radius: 4px;
 }
 
 .detection-item {
   display: flex;
   justify-content: space-between;
-  padding: 8px;
+  padding: 10px;
   border-bottom: 1px solid #f0f0f0;
   font-size: 13px;
 }
@@ -71,6 +86,10 @@ body {
 
 .detection-site {
   font-weight: 600;
+}
+
+.detection-info {
+  text-align: right;
 }
 
 .detection-method {
@@ -93,9 +112,143 @@ body {
 .actions {
   display: flex;
   justify-content: space-between;
+  margin-top: 15px;
 }
 
-.actions button {
-  flex: 0 0 48%;
-  font-size: 13px;
+.btn {
+  padding: 8px 15px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 48%;
+  transition: background-color 0.2s;
+}
+
+.btn i {
+  font-size: 14px;
+}
+
+.btn-primary {
+  background-color: #4361ee;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #3a56d4;
+}
+
+.btn-danger {
+  background-color: #dc3545;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #c82333;
+}
+
+/* Toggle Switch */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 24px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  -webkit-transition: 0.4s;
+  transition: 0.4s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #4361ee;
+}
+
+input:checked + .slider:before {
+  transform: translateX(22px);
+}
+
+.round {
+  border-radius: 24px;
+}
+/* Add to popup.css if the toggle switch isn't styled properly */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 24px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.4s;
+}
+
+input:checked + .slider {
+  background-color: #4361ee;
+}
+
+input:checked + .slider:before {
+  transform: translateX(22px);
+}
+
+.round {
+  border-radius: 24px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
 }
